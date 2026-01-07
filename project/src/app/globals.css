@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-100 antialiased;
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-playfair), serif;
+    @apply font-medium tracking-tight;
+  }
+
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-6xl;
+  }
+
+  h2 {
+    @apply text-3xl md:text-4xl lg:text-5xl;
+  }
+
+  h3 {
+    @apply text-2xl md:text-3xl lg:text-4xl;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-zinc-900/50 backdrop-blur-md border border-zinc-800/50;
+  }
+
+  .btn-primary {
+    @apply font-medium px-6 py-3 rounded-lg
+    transition-all duration-300 ease-out
+    active:scale-95;
+    background-color: #10b981;
+    color: #ffffff;
+  }
+
+  .btn-primary:hover {
+    background-color: #059669;
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
+  }
+
+  .btn-secondary {
+    @apply font-medium px-6 py-3 rounded-lg
+    transition-all duration-300 ease-out
+    active:scale-95;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+  }
+
+  .btn-secondary:hover {
+    background-color: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+
+  .accent-border {
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+
+  .glow-text {
+    color: #34d399;
+    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4));
+  }
+}
