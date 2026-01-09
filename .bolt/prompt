@@ -1,0 +1,88 @@
+Based on your Taylored Pet Portraits business model, here are comprehensive project instructions you should put in Bolt for your redemption portal:
+
+***
+
+## **Taylored Pet Portraits - Redemption Portal**
+
+### **Project Overview**
+A customer-facing redemption portal where pet portrait customers can view, select, and download their custom AI-generated portraits. This is a critical part of the customer journey after they purchase a portrait package.
+
+### **Business Model Context**
+- Customers purchase portrait packages at tayloredpetportraits.com
+- We generate 5 unique digital portrait variations per order
+- Customers receive a personal redemption link via email
+- Through the portal, they can:
+  - View all 5 portrait variations
+  - Select their favorite for physical printing (8x10)
+  - Download all 5 digital files for personal use
+  - Share portraits on social media
+
+### **Core Features Required**
+
+**Customer Portal:**
+- Unique redemption code/link authentication (no login required)
+- Gallery view displaying all 5 portrait variations
+- High-quality image display with zoom capability
+- "Select Favorite" button for each portrait (marks choice for physical printing)
+- Download all 5 portraits as high-res files (individual or batch download)
+- Mobile-responsive design (most customers use phones)
+- Social sharing buttons (Instagram, Facebook)
+- Order details display (customer name, pet name, theme selected)
+
+**Admin Portal:**
+- Secure password authentication (password: admin123)
+- Dashboard showing all active orders
+- Upload portraits to customer orders
+- Generate unique redemption links
+- View customer selections
+- Mark orders as fulfilled/shipped
+- Customer communication log
+
+### **Technical Requirements**
+- **Framework:** Next.js (already set up)
+- **Database:** Supabase (already configured)
+- **Environment Variables:** 
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+- **Deployment:** Vercel (redemption23.vercel.app)
+- **Image Storage:** Supabase Storage or cloud storage solution
+- **File Formats:** JPEG/PNG, high resolution (300 DPI for printing)
+
+### **Database Schema Needed**
+- **Orders table:** order_id, customer_email, customer_name, pet_name, theme, redemption_code, created_at, status
+- **Portraits table:** portrait_id, order_id, image_url, is_selected, upload_date
+- **Admin table:** admin authentication credentials
+
+### **User Experience Priorities**
+1. **Simple & intuitive** - customers aren't tech-savvy
+2. **Fast loading** - high-res images must load quickly
+3. **Mobile-first** - 70%+ of traffic is mobile
+4. **Clear CTAs** - "Download All", "Select This One", "Share"
+5. **Celebratory feeling** - this is an exciting moment for customers
+
+### **Brand Guidelines**
+- **Name:** Taylored Pet Portraits
+- **Tagline:** "Redemption Portal"
+- **Colors:** Keep elegant, pet-friendly (refer to tayloredpetportraits.com for brand colors)
+- **Tone:** Warm, personal, celebratory
+- **Accessibility:** Must be fully accessible (a11y compliant)
+
+### **Current Issues to Fix**
+- Dev server installation errors in Bolt
+- Preview not showing in Bolt interface  
+- Need proper error handling for invalid redemption codes
+- Mobile responsiveness optimization
+
+### **Success Metrics**
+- 100% of customers can access their portal via redemption link
+- <3 second load time for image gallery
+- Zero errors in selecting/downloading portraits
+- Admin can upload and manage 20+ orders per day efficiently
+
+***
+
+This should give Bolt (and any future developers) a complete understanding of your redemption portal's purpose, requirements, and priorities.[1][2]
+
+[1](https://tayloredpetportraits.com/pages/faq)
+[2](https://tayloredpetportraits.com)
