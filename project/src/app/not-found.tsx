@@ -8,7 +8,7 @@ export default function NotFound() {
         <div className="space-y-2">
           <h1 className="text-3xl">Order Not Found</h1>
           <p className="text-zinc-400">
-            The order you're looking for doesn't exist or has been removed.
+            The order you&apos;re looking for doesn&apos;t exist or has been removed.
           </p>
         </div>
         <Link href="/" className="btn-primary rounded-lg inline-block">

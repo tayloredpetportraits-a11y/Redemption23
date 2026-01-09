@@ -10,6 +10,19 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.pexels.com',
       },
+
+      {
+        protocol: 'https',
+        hostname: 'placekitten.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'placedog.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+      },
     ],
   },
   experimental: {

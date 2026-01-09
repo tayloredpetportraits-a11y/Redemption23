@@ -28,6 +28,7 @@ export async function getImagesByOrderId(orderId: string): Promise<Image[]> {
     .from('images')
     .select('*')
     .eq('order_id', orderId)
+    .eq('status', 'approved') // Only show approved images to customer
     .order('created_at', { ascending: true });
 
   if (error) throw error;

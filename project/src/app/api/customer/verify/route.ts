@@ -3,11 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// createClient moved inside handler
 
 export async function POST(request: NextRequest) {
   try {
     const { orderNumber, email } = await request.json();
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     if (!orderNumber || !email) {
       return NextResponse.json(

@@ -8,6 +8,7 @@
     ],
     "jsx": "preserve",
     "module": "ESNext",
+    "baseUrl": ".",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "allowJs": true,

@@ -1,0 +1,29 @@
+"use strict";(()=>{var e={};e.id=6803,e.ids=[6803],e.modules={20399:e=>{e.exports=require("next/dist/compiled/next-server/app-page.runtime.prod.js")},30517:e=>{e.exports=require("next/dist/compiled/next-server/app-route.runtime.prod.js")},57441:e=>{e.exports=require("sharp")},92048:e=>{e.exports=require("fs")},32615:e=>{e.exports=require("http")},35240:e=>{e.exports=require("https")},55315:e=>{e.exports=require("path")},68621:e=>{e.exports=require("punycode")},76162:e=>{e.exports=require("stream")},17360:e=>{e.exports=require("url")},71568:e=>{e.exports=require("zlib")},6005:e=>{e.exports=require("node:crypto")},84196:(e,t,r)=>{r.r(t),r.d(t,{originalPathname:()=>q,patchFetch:()=>v,requestAsyncStorage:()=>_,routeModule:()=>w,serverHooks:()=>y,staticGenerationAsyncStorage:()=>x});var a={};r.r(a),r.d(a,{GET:()=>f,POST:()=>h,dynamic:()=>g,maxDuration:()=>c});var o=r(49303),i=r(88716),s=r(60670),n=r(87070),d=r(65655),u=r(20471),p=r(94670),l=r(81665),m=r(79777);let c=300,g="force-dynamic";async function f(){let e=(0,d.i)(),{data:t,error:r}=await e.from("images").select("*").eq("status","pending_review");if(r)return n.NextResponse.json({error:r.message},{status:500});if(!t||0===t.length)return n.NextResponse.json({orders:[],images:[]});let a=Array.from(new Set(t.map(e=>e.order_id))),{data:o,error:i}=await e.from("orders").select("*").in("id",a);return i?n.NextResponse.json({error:i.message},{status:500}):n.NextResponse.json({orders:o,images:t})}async function h(e){let{imageId:t,status:r}=await e.json(),a=(0,d.i)(),{data:o,error:i}=await a.from("images").select("*, orders(*)").eq("id",t).single();if(i||!o)return n.NextResponse.json({error:"Image not found"},{status:404});let{error:s}=await a.from("images").update({status:r}).eq("id",t);if(s)return n.NextResponse.json({error:s.message},{status:500});if("approved"===r)try{let e=o.orders,t=null;if(o.url.startsWith("http")){let e=await fetch(o.url);e.ok&&(t=Buffer.from(await e.arrayBuffer()))}if(t){if(e&&e.social_consent)try{let{caption:t,hashtags:r}=await (0,l.x)(e.pet_name||"Pet",e.pet_breed||"",e.product_type||"Portrait",e.pet_details||"");await (0,m.YR)({order_id:e.id,image_id:o.id,caption:t,hashtags:r,platform:"instagram"}),console.log(`[Social] Draft created for ${e.id}`)}catch(e){console.error("[Social] Failed:",e)}"upsell"!==o.type&&await (0,p.h3)(t,o.order_id,o.id,e.product_type)}}catch(e){console.error("Automation failed:",e)}let{data:c}=await a.from("images").select("id").eq("order_id",o.order_id).eq("status","pending_review"),g=!c||0===c.length;if(g){await a.from("orders").update({status:"fulfilled"}).eq("id",o.order_id);let{data:e}=await a.from("orders").select("customer_email, customer_name, id").eq("id",o.order_id).single();e&&(await (0,u.l)(e.customer_email,e.customer_name,e.id),console.log(`[EMAIL TRIGGER] Sent redemption link to ${e.customer_email}`))}return n.NextResponse.json({success:!0,orderCompleted:g})}let w=new o.AppRouteRouteModule({definition:{kind:i.x.APP_ROUTE,page:"/api/admin/review-queue/route",pathname:"/api/admin/review-queue",filename:"route",bundlePath:"app/api/admin/review-queue/route"},resolvedPagePath:"/Users/taylorstrong/Redemption23-1/project/src/app/api/admin/review-queue/route.ts",nextConfigOutput:"",userland:a}),{requestAsyncStorage:_,staticGenerationAsyncStorage:x,serverHooks:y}=w,q="/api/admin/review-queue/route";function v(){return(0,s.patchFetch)({serverHooks:y,staticGenerationAsyncStorage:x})}},81665:(e,t,r)=>{r.d(t,{x:()=>o});let a=new(r(11258)).$D(process.env.GOOGLE_AI_API_KEY);async function o(e,t,r,o=""){try{let i=a.getGenerativeModel({model:"gemini-1.5-flash"}),s=`
+        You remain in the persona of a professional social media manager for "Taylored Pet Portraits", a brand that turns pets into royalty, astronauts, and more.
+        
+        Task: Write an engaging Instagram caption for a new customer portrait.
+        
+        Details:
+        - Pet Name: ${e}
+        - Breed: ${t||"Adorable Pet"}
+        - Theme/Product: ${r}
+        - Extra Details: ${o}
+        
+        Requirements:
+        1. Tone: Fun, celebratory, slightly humorous, and premium.
+        2. Format: Returns a JSON object with 'caption' (string) and 'hashtags' (string[]).
+        3. Caption: 1-2 sentences. Use emojis. Encourage people to get their own at the link in bio.
+        4. Hashtags: 10-15 relevant tags mixed with high volume (e.g. #dogsofinstagram) and niche (e.g. #custompetportrait).
+        
+        Output JSON only.
+        `,n=(await i.generateContent(s)).response.text().replace(/```json/g,"").replace(/```/g,"").trim(),d=JSON.parse(n);return{caption:d.caption||`All hail King ${e}! 👑 Another masterpiece by Taylored Pet Portraits.`,hashtags:d.hashtags||["#petportraits","#dogsofinstagram"]}}catch(r){return console.error("AI Caption Generation Failed:",r),{caption:`${e} is looking majestic! 🐾 Get your own custom pet portrait today!`,hashtags:["#petportraits","#customart",`#${t.replace(/\s/g,"")}`]}}}},79777:(e,t,r)=>{r.d(t,{GC:()=>i,YR:()=>o});var a=r(65655);async function o(e){let t=(0,a.i)(),{data:r,error:o}=await t.from("social_posts").insert({order_id:e.order_id,image_id:e.image_id,caption:e.caption,hashtags:e.hashtags,platform:e.platform||"instagram",status:"draft"}).select().single();if(o)throw o;return r}async function i(e="draft"){let t=(0,a.i)().from("social_posts").select(`
+            *,
+            images (
+                url,
+                storage_path
+            ),
+            orders (
+                customer_name,
+                pet_name
+            )
+        `).order("created_at",{ascending:!1});"all"!==e&&(t=t.eq("status",e));let{data:r,error:o}=await t;if(o)throw o;return r}}};var t=require("../../../../webpack-runtime.js");t.C(e);var r=e=>t(t.s=e),a=t.X(0,[9276,5972,9498,2723,1258,4670],()=>r(84196));module.exports=a})();

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Star, Clock, TrendingUp } from 'lucide-react';
-import Image from 'next/image';
+import { MockupGenerator } from './MockupEngine/MockupGenerator';
 
 interface UpsellProduct {
   id: string;
@@ -182,26 +182,26 @@ export default function UpsellFunnel({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+        className="fixed inset-0 bg-brand-navy/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
         onClick={handleDecline}
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="glass-card rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+          className="glass-card rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl shadow-brand-navy/20"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="sticky top-0 bg-zinc-900/95 backdrop-blur-sm border-b border-zinc-800 p-4 flex items-center justify-between z-10">
-            <div className="flex items-center gap-2 text-amber-400">
+          <div className="sticky top-0 bg-white/95 backdrop-blur-sm border-b border-zinc-100 p-4 flex items-center justify-between z-10">
+            <div className="flex items-center gap-2 text-brand-navy">
               <TrendingUp className="w-5 h-5" />
-              <span className="font-semibold">Special Offer - Available Now</span>
+              <span className="font-semibold font-playfair">Special Offer - Available Now</span>
             </div>
             <button
               onClick={handleDecline}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+              className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
             >
-              <X className="w-5 h-5 text-zinc-400" />
+              <X className="w-5 h-5 text-zinc-400 hover:text-brand-navy" />
             </button>
           </div>
 
@@ -210,73 +210,68 @@ export default function UpsellFunnel({
               <div className="space-y-6">
                 <div className="space-y-2">
                   {currentOffer.originalPrice && (
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full">
-                      <Clock className="w-4 h-4 text-red-400" />
-                      <span className="text-sm text-red-400 font-medium">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-rose-50 border border-rose-100 rounded-full">
+                      <Clock className="w-4 h-4 text-rose-500" />
+                      <span className="text-sm text-rose-600 font-medium">
                         Limited Time - Save ${currentOffer.originalPrice - currentOffer.price}!
                       </span>
                     </div>
                   )}
-                  <h2 className="text-zinc-100">{currentOffer.name}</h2>
-                  <p className="text-zinc-400 text-lg">{currentOffer.description}</p>
+                  <h2 className="text-brand-navy font-playfair">{currentOffer.name}</h2>
+                  <p className="text-zinc-600 text-lg">{currentOffer.description}</p>
                 </div>
 
                 <div className="flex items-baseline gap-3">
                   {currentOffer.originalPrice && (
-                    <span className="text-2xl text-zinc-500 line-through">
+                    <span className="text-2xl text-zinc-400 line-through">
                       ${currentOffer.originalPrice}
                     </span>
                   )}
-                  <span className="text-4xl font-bold text-amber-400">
+                  <span className="text-4xl font-bold text-brand-navy">
                     ${currentOffer.price}
                   </span>
                 </div>
 
                 <div className="space-y-3">
-                  <p className="text-sm font-semibold text-zinc-300">
-                    Turn {petName}'s portrait into:
+                  <p className="text-sm font-semibold text-zinc-700">
+                    Turn {petName}&apos;s portrait into:
                   </p>
                   {currentOffer.benefits.map((benefit, index) => (
                     <div key={index} className="flex items-start gap-3">
-                      <div className="w-5 h-5 bg-amber-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <div className="w-2 h-2 bg-amber-400 rounded-full" />
+                      <div className="w-5 h-5 bg-brand-navy/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <div className="w-2 h-2 bg-brand-navy rounded-full" />
                       </div>
-                      <span className="text-zinc-300">{benefit}</span>
+                      <span className="text-zinc-600">{benefit}</span>
                     </div>
                   ))}
                 </div>
 
                 {currentOffer.testimonial && (
-                  <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-4 space-y-2">
+                  <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-4 space-y-2">
                     <div className="flex items-center gap-1">
                       {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                        <Star key={i} className="w-4 h-4 fill-brand-navy text-brand-navy" />
                       ))}
                     </div>
-                    <p className="text-zinc-300 italic">"{currentOffer.testimonial}"</p>
-                    <p className="text-sm text-zinc-500">- {currentOffer.testimonialAuthor}</p>
+                    <p className="text-zinc-600 italic">&quot;{currentOffer.testimonial}&quot;</p>
+                    <p className="text-sm text-zinc-500 font-medium">- {currentOffer.testimonialAuthor}</p>
                   </div>
                 )}
 
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
-                  <p className="text-sm text-amber-400">
+                <div className="bg-brand-blue/20 border border-brand-blue/30 rounded-lg p-4">
+                  <p className="text-sm text-brand-navy">
                     <strong>4,287 pet parents</strong> upgraded their portraits this month
                   </p>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className="aspect-square bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-lg overflow-hidden relative">
-                  <div className="absolute inset-0 flex items-center justify-center p-8">
-                    <div className="relative w-full h-full">
-                      <Image
-                        src={portraitUrl}
-                        alt={`${petName} on ${currentOffer.name}`}
-                        fill
-                        className="object-contain rounded-lg shadow-2xl"
-                      />
-                    </div>
-                  </div>
+                <div className="aspect-square bg-zinc-50 rounded-2xl overflow-hidden relative border border-zinc-200">
+                  <MockupGenerator
+                    productType={currentOffer.mockupType}
+                    imageUrl={portraitUrl}
+                    className="absolute inset-0"
+                  />
                 </div>
 
                 <div className="text-center text-sm text-zinc-500">
@@ -285,22 +280,22 @@ export default function UpsellFunnel({
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-zinc-800">
+            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-zinc-100">
               <button
                 onClick={handleAccept}
-                className="btn-amber rounded-lg flex-1 py-4 text-lg"
+                className="btn-primary rounded-xl flex-1 py-4 text-lg shadow-xl"
               >
                 Yes! Add to My Order (${currentOffer.price})
               </button>
               <button
                 onClick={handleDecline}
-                className="btn-secondary rounded-lg px-8 py-4"
+                className="btn-secondary rounded-xl px-8 py-4"
               >
                 {currentOfferIndex < offers.length - 1 ? 'Show Me Other Options' : 'No Thanks'}
               </button>
             </div>
 
-            <div className="text-center text-sm text-zinc-500">
+            <div className="text-center text-sm text-zinc-400">
               <Clock className="w-4 h-4 inline mr-1" />
               This offer expires when you leave this page
             </div>

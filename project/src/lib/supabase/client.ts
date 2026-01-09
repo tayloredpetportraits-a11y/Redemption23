@@ -1,17 +1,21 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey);
+export const createClient = () => supabase;
 
 export type Order = {
   id: string;
   customer_name: string;
   customer_email: string;
   pet_name: string | null;
+  pet_image_url: string | null;
+  pet_breed: string | null;
+  pet_details: string | null;
   product_type: string | null;
-  status: 'pending' | 'ready' | 'failed';
+  status: 'pending' | 'ready' | 'failed' | 'fulfilled' | 'revising' | 'archived' | 'processing_print';
   payment_status: 'unpaid' | 'paid';
   social_consent: boolean;
   social_handle: string | null;
@@ -33,6 +37,8 @@ export type Order = {
   downloaded_count: number;
   bonus_conversion: boolean;
   upsell_conversion: boolean;
+  fulfillment_status: string | null;
+  print_provider_order_id: string | null;
   share_count: number;
   created_at: string;
 };
@@ -42,11 +48,13 @@ export type Image = {
   order_id: string;
   url: string;
   storage_path: string;
-  type: 'primary' | 'upsell';
+  type: 'primary' | 'upsell' | 'mockup';
   is_selected: boolean;
   is_bonus: boolean;
   watermarked_url: string | null;
   theme_name: string | null;
   display_order: number;
+  status: 'pending_review' | 'approved' | 'rejected';
+  template_id: string | null;
   created_at: string;
 };

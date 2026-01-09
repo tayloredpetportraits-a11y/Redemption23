@@ -1,122 +1,101 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+// import { createOrder } from '@/lib/api/orders';
+import { generateImagesForOrder } from '@/lib/ai/generation';
+// import { mockDb } from '@/lib/mock-db';
 import { createAdminClient } from '@/lib/supabase/server';
+import { sendCustomerNotification } from '@/lib/email';
+import fs from 'fs';
+import path from 'path';
 
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const cookieStore = await cookies();
-    const adminToken = cookieStore.get('admin-token')?.value;
+    const contentType = req.headers.get('content-type') || '';
 
-    if (adminToken !== 'authenticated') {
-      return NextResponse.json(
-        { error: 'Unauthorized. Please log in as admin.' },
-        { status: 401 }
-      );
+    let customerName, customerEmail, productType, petPhotoUrl, petBreed, petDetails;
+    let autoApprove = false;
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData();
+      customerName = formData.get('customerName') as string;
+      customerEmail = formData.get('customerEmail') as string;
+      productType = formData.get('productType') as string;
+      const petPhoto = formData.get('petPhoto') as File;
+      petBreed = formData.get('petBreed') as string;
+      petDetails = formData.get('petDetails') as string;
+      autoApprove = formData.get('autoApprove') === 'true';
+
+      if (!customerName || !customerEmail || !productType || !petPhoto) {
+        return NextResponse.json(
+          { error: 'Missing required form fields: customerName, customerEmail, productType, petPhoto' },
+          { status: 400 }
+        );
+      }
+
+      // Save the pet photo if provided
+      if (petPhoto) {
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'pets');
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        const buffer = Buffer.from(await petPhoto.arrayBuffer());
+        const safeName = `pet-${Date.now()}-${petPhoto.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        fs.writeFileSync(path.join(uploadDir, safeName), buffer);
+        petPhotoUrl = `/uploads/pets/${safeName}`;
+      } else {
+        petPhotoUrl = 'https://placeholder/dog.jpg';
+      }
+
+    } else {
+      // JSON fallback
+      const body = await req.json();
+      customerName = body.customerName;
+      customerEmail = body.customerEmail;
+      productType = body.productType;
+      petPhotoUrl = body.petPhotoUrl;
     }
 
-    const formData = await request.formData();
-    const customerName = formData.get('customerName') as string;
-    const customerEmail = formData.get('customerEmail') as string;
-    const productType = formData.get('productType') as string | null;
-    const primaryImages = formData.getAll('primaryImages') as File[];
-    const upsellImages = formData.getAll('upsellImages') as File[];
-
-    if (!customerName || !customerEmail) {
-      return NextResponse.json(
-        { error: 'Customer name and email are required.' },
-        { status: 400 }
-      );
-    }
-
-    if (primaryImages.length === 0) {
-      return NextResponse.json(
-        { error: 'Please upload at least one primary image.' },
-        { status: 400 }
-      );
-    }
-
+    // 1. Create Order
     const supabase = createAdminClient();
-
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
         customer_name: customerName,
         customer_email: customerEmail,
-        product_type: productType || null,
-        status: 'ready',
-        payment_status: 'unpaid',
+        product_type: productType,
+        pet_image_url: petPhotoUrl,
+        status: 'pending',
+        pet_breed: petBreed || null,
+        pet_details: petDetails || null
       })
-      .select('id')
+      .select()
       .single();
 
     if (orderError) {
-      console.error('Order creation error:', orderError);
-      return NextResponse.json(
-        { error: 'Failed to create order. Please try again.' },
-        { status: 500 }
-      );
+      console.error("DB Insert Error", orderError);
+      throw new Error(`Order creation failed: ${orderError.message}`);
     }
 
     const orderId = order.id;
 
-    const uploadImage = async (file: File, type: 'primary' | 'upsell') => {
-      const bucket = type === 'primary' ? 'primary-images' : 'upsell-images';
-      const fileName = `${orderId}/${Date.now()}-${file.name}`;
+    // 2. Send "Order Started" Email
+    // Don't await to keep UI fast
+    sendCustomerNotification(customerEmail, customerName, orderId, 'ordered').catch(e => console.error("Failed to send welcome email:", e));
 
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(fileName, file);
-
-      if (uploadError) {
-        throw new Error(`Failed to upload ${type} image: ${uploadError.message}`);
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(fileName);
-
-      const { error: dbError } = await supabase
-        .from('images')
-        .insert({
-          order_id: orderId,
-          url: publicUrl,
-          storage_path: fileName,
-          type,
-          is_selected: false,
-        });
-
-      if (dbError) {
-        throw new Error(`Failed to save ${type} image to database: ${dbError.message}`);
-      }
-    };
-
-    try {
-      await Promise.all([
-        ...primaryImages.map((file) => uploadImage(file, 'primary')),
-        ...upsellImages.map((file) => uploadImage(file, 'upsell')),
-      ]);
-    } catch (uploadError) {
-      console.error('Image upload error:', uploadError);
-
-      await supabase.from('orders').delete().eq('id', orderId);
-
-      return NextResponse.json(
-        { error: 'Failed to upload images. Please check your connection and try again.' },
-        { status: 500 }
-      );
-    }
-
-    const customerUrl = `/order/${orderId}`;
+    // 4. Trigger AI Generation (Background)
+    // We intentionally don't await this so the UI returns fast
+    generateImagesForOrder(order.id, petPhotoUrl, productType, petBreed, petDetails, autoApprove).catch(err => {
+      console.error("Background Generation Failed:", err);
+    });
 
     return NextResponse.json({
       success: true,
-      orderId,
-      customerUrl,
+      customerUrl: `/customer/gallery/${orderId}`
     });
-  } catch (error) {
-    console.error('Order creation error:', error);
+
+  } catch (error: unknown) {
+    console.error('Order creation failed:', error);
     return NextResponse.json(
-      { error: 'Something went wrong. Please try again later.' },
+      { error: (error as Error).message || 'Internal server error' },
       { status: 500 }
     );
   }

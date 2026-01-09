@@ -15,7 +15,7 @@ export async function POST(
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const updateData: Record<string, any> = {
+    const updateData: Record<string, string | boolean | null> = {
       social_consent: socialConsent || false,
       social_handle: socialHandle || null,
       marketing_consent: marketingConsent || false,

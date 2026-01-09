@@ -4,13 +4,18 @@
 
 @layer base {
   body {
-    @apply bg-zinc-950 text-zinc-100 antialiased;
-    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    @apply bg-brand-bg text-brand-text antialiased;
+    font-family: var(--font-outfit), var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-playfair), serif;
-    @apply font-medium tracking-tight;
+    @apply font-medium tracking-tight text-brand-navy;
   }
 
   h1 {
@@ -27,43 +32,36 @@
 }
 
 @layer components {
+
+  /* Modern Glassmorphism Logic */
   .glass-card {
-    @apply bg-zinc-900/50 backdrop-blur-md border border-zinc-800/50;
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-xl shadow-brand-navy/5 rounded-2xl;
   }
 
+  .glass-panel {
+    @apply bg-brand-navy/5 backdrop-blur-lg border border-brand-navy/5 rounded-xl;
+  }
+
+  /* Premium Buttons */
   .btn-primary {
-    @apply font-medium px-6 py-3 rounded-lg
-    transition-all duration-300 ease-out
-    active:scale-95;
-    background-color: #10b981;
-    color: #ffffff;
-  }
-
-  .btn-primary:hover {
-    background-color: #059669;
-    box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
+    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl transition-all duration-300 ease-out active:scale-95 bg-brand-navy text-white shadow-lg shadow-brand-navy/20 hover:bg-brand-navy/90 hover:shadow-brand-navy/30 hover:-translate-y-0.5;
   }
 
   .btn-secondary {
-    @apply font-medium px-6 py-3 rounded-lg
-    transition-all duration-300 ease-out
-    active:scale-95;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    color: #34d399;
+    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl transition-all duration-300 ease-out active:scale-95 border border-brand-navy/10 text-brand-navy bg-white/50 hover:bg-white hover:border-brand-navy/30 hover:shadow-md backdrop-blur-sm;
   }
 
-  .btn-secondary:hover {
-    background-color: rgba(16, 185, 129, 0.1);
-    border-color: rgba(16, 185, 129, 0.5);
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  .btn-ghost {
+    @apply inline-flex items-center justify-center font-medium px-4 py-2 rounded-lg transition-colors text-brand-navy/70 hover:text-brand-navy hover:bg-brand-navy/5;
   }
 
   .accent-border {
-    border-color: rgba(16, 185, 129, 0.3);
+    @apply border-brand-periwinkle;
   }
 
   .glow-text {
-    color: #34d399;
-    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4));
+    @apply text-brand-navy;
+    /* Subtle glow for elegance */
+    text-shadow: 0 0 20px rgba(16, 17, 35, 0.1);
   }
 }

@@ -1,5 +1,7 @@
-import { Playfair_Display, Inter } from 'next/font/google';
+import { Playfair_Display, Inter, Outfit } from 'next/font/google';
 import './globals.css';
+import SupportWidget from '@/components/SupportWidget';
+import { ToastProvider } from '@/components/ui/Toast';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -10,6 +12,12 @@ const playfair = Playfair_Display({
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap',
+});
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
   display: 'swap',
 });
 
@@ -24,8 +32,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
-      <body>{children}</body>
+    <html lang="en" className={`${playfair.variable} ${inter.variable} ${outfit.variable}`}>
+      <body className="font-sans antialiased min-h-screen bg-brand-bg text-brand-text" suppressHydrationWarning>
+        <ToastProvider>
+          {children}
+          <SupportWidget />
+        </ToastProvider>
+      </body>
     </html>
   );
 }

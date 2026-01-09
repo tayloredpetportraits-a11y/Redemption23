@@ -54,7 +54,7 @@ export default function RevisionRequestModal({ isOpen, onClose, onSubmit }: Revi
                     Request a Revision
                   </h2>
                   <p className="text-gray-600">
-                    Let us know what changes you'd like to see in your portrait. Our team will review your request and get back to you soon.
+                    Let us know what changes you&apos;d like to see in your portrait. Our team will review your request and get back to you soon.
                   </p>
                 </div>
               </div>

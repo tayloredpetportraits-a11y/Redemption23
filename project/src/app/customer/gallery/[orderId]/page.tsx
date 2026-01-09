@@ -1,28 +1,57 @@
+import { createAdminClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
-import { getOrderById, getImagesByOrderId } from '@/lib/api/orders';
 import CustomerGallery from '@/components/CustomerGallery';
+import type { Image } from '@/lib/supabase/client';
 
-interface PageProps {
-  params: Promise<{ orderId: string }>;
-}
+export const dynamic = 'force-dynamic';
 
-export default async function CustomerGalleryPage({ params }: PageProps) {
-  const { orderId } = await params;
+export default async function Page({ params }: { params: { orderId: string } }) {
+    const supabase = createAdminClient();
+    const { orderId } = params;
 
-  const order = await getOrderById(orderId);
-  if (!order) {
-    notFound();
-  }
+    // 1. Fetch Order
+    const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
 
-  const images = await getImagesByOrderId(orderId);
-  const baseImages = images.filter((img) => img.type === 'primary');
-  const bonusImages = images.filter((img) => img.type === 'upsell');
+    if (orderError || !order) {
+        console.error('Order not found:', orderId);
+        notFound();
+    }
 
-  return (
-    <CustomerGallery
-      order={order}
-      baseImages={baseImages}
-      bonusImages={bonusImages}
-    />
-  );
+    // 2. Fetch Images (Approved Only for Customer view)
+    const { data: images, error: imgError } = await supabase
+        .from('images')
+        .select('*')
+        .eq('order_id', orderId)
+        .or('status.eq.approved,is_bonus.eq.true')
+        .order('display_order', { ascending: true });
+
+    if (imgError || !images) {
+        console.error('Failed to fetch images:', imgError);
+        return <div className="p-8 text-center">Failed to load gallery. Please contact support.</div>;
+    }
+
+    // 3. Split Images
+    // Base: Primary images only (exclude bonus and upsell/mockups)
+    const baseImages = (images || []).filter((img: Image) => img.type === 'primary' && !img.is_bonus);
+
+    // Bonus: Any image marked is_bonus (usually type=upsell)
+    const bonusImages = (images || []).filter((img: Image) => img.is_bonus);
+
+    // Mockups: type=upsell or type=mockup but NOT bonus (Admin generated or Manual mockups)
+    const mockupImages = (images || []).filter((img: Image) => (img.type === 'upsell' || img.type === 'mockup') && !img.is_bonus);
+
+    console.log(`[Gallery Debug] Base: ${baseImages.length}, Bonus: ${bonusImages.length}, Mockups: ${mockupImages.length}`);
+
+    return (
+        <CustomerGallery
+            order={order}
+            baseImages={baseImages}
+            bonusImages={bonusImages}
+            mockupImages={mockupImages}
+        />
+    );
 }

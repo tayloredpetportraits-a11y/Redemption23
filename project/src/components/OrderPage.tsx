@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { Check, Lock, Download, X, Edit3 } from 'lucide-react';
-import { selectImage, updatePaymentStatus } from '@/lib/api/orders';
+import { updatePaymentStatus } from '@/lib/api/orders';
 import type { Order, Image as ImageType } from '@/lib/supabase/client';
-import confetti from 'canvas-confetti';
+import JSConfetti from 'js-confetti';
 import ReviewModal from './ReviewModal';
 import RevisionRequestModal from './RevisionRequestModal';
 
@@ -43,7 +43,22 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
     if (!selectedImageId) return;
 
     try {
-      await selectImage(selectedImageId, order.id);
+      // Use the server-side API to bypass RLS and trigger fulfillment logic
+      const response = await fetch(`/api/customer/${order.id}/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          selectedImageId,
+          printProduct: order.product_type || 'poster', // Default or use order's product type
+          notes: '' // Optional notes
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to confirm order');
+      }
 
       if (socialConsent || socialHandle) {
         await fetch(`/api/orders/${order.id}/social`, {
@@ -56,26 +71,11 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
         });
       }
 
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
+      const jsConfetti = new JSConfetti();
+      jsConfetti.addConfetti({
+        emojis: ['🐶', '🐱', '🦴', '🐾'],
+        confettiNumber: 100,
       });
-
-      setTimeout(() => {
-        confetti({
-          particleCount: 50,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 }
-        });
-        confetti({
-          particleCount: 50,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 }
-        });
-      }, 200);
 
       setConfirmed(true);
       setShowMockup(false);
@@ -84,6 +84,7 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
         setShowReviewModal(true);
       }, 1000);
     } catch (error) {
+      console.error('Confirmation error:', error);
       alert('Failed to confirm selection. Please try again.');
     }
   };
@@ -96,7 +97,7 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
         await updatePaymentStatus(order.id, 'paid');
         setIsPaid(true);
         setShowPaymentModal(false);
-      } catch (error) {
+      } catch {
         alert('Payment failed. Please try again.');
       } finally {
         setPaymentLoading(false);
@@ -128,7 +129,7 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
       setTimeout(() => {
         document.getElementById('upsell-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 300);
-    } catch (error) {
+    } catch {
       alert('Failed to submit review. Please try again.');
     }
   };
@@ -149,7 +150,7 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
       });
       setShowRevisionModal(false);
       alert('Revision request submitted! Our team will review it shortly.');
-    } catch (error) {
+    } catch {
       alert('Failed to submit revision request. Please try again.');
     }
   };
@@ -170,7 +171,7 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
           <div className="text-center space-y-2">
             <h2>Choose Your Print</h2>
             <p className="text-zinc-400">
-              Select the image you'd like to receive
+              Select the image you&apos;d like to receive
             </p>
           </div>
 
@@ -180,13 +181,12 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
                 key={image.id}
                 whileHover={{ y: confirmed ? 0 : -8 }}
                 onClick={() => handleImageSelect(image.id)}
-                className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-all ${
-                  selectedImageId === image.id
-                    ? 'ring-4 ring-[#7C3AED]'
-                    : confirmed
+                className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-all ${selectedImageId === image.id
+                  ? 'ring-4 ring-[#7C3AED]'
+                  : confirmed
                     ? 'opacity-50 cursor-not-allowed'
                     : 'hover:ring-2 ring-zinc-700'
-                }`}
+                  }`}
               >
                 <Image
                   src={image.url}
@@ -266,9 +266,8 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
                   src={image.url}
                   alt="Bonus"
                   fill
-                  className={`object-cover transition-all ${
-                    isPaid ? '' : 'blur-sm grayscale'
-                  }`}
+                  className={`object-cover transition-all ${isPaid ? '' : 'blur-sm grayscale'
+                    }`}
                 />
 
                 {!isPaid && (
@@ -374,7 +373,7 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
                       className="mt-1 w-5 h-5 rounded border-zinc-700 text-[#7C3AED] focus:ring-[#7C3AED]"
                     />
                     <label htmlFor="socialConsent" className="text-sm text-zinc-300 cursor-pointer">
-                      Can we feature your pet on social media? We'd love to share your beautiful portrait with our community!
+                      Can we feature your pet on social media? We&apos;d love to share your beautiful portrait with our community!
                     </label>
                   </div>
 

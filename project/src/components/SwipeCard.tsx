@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+// useState and useRef removed
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { Check, X, Instagram, Lock } from 'lucide-react';
 import Image from 'next/image';
@@ -25,7 +25,7 @@ export default function SwipeCard({
   const rotate = useTransform(x, [-200, 200], [-25, 25]);
   const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
 
-  const handleDragEnd = (event: any, info: any) => {
+  const handleDragEnd = (_event: unknown, info: { offset: { x: number } }) => {
     if (Math.abs(info.offset.x) > 150) {
       if (info.offset.x > 0) {
         onApprove();
