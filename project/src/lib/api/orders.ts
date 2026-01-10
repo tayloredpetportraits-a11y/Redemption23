@@ -115,6 +115,7 @@ export async function uploadImage(
       storage_path: fileName,
       type,
       is_selected: false,
+      status: 'approved', // Auto-approve manually uploaded images
     });
 
   if (dbError) throw dbError;
