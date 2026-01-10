@@ -1,5 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, AlertCircle, ExternalLink, ImageIcon } from 'lucide-react';
+import { X, Check, AlertCircle, ExternalLink, ImageIcon, Trash2, Upload, Loader2, Link as LinkIcon } from 'lucide-react';
+import { deleteImage, uploadImage } from '@/lib/api/orders';
+import { useState } from 'react';
 import Image from 'next/image';
 import type { Order, Image as ImageType } from '@/lib/supabase/client';
 
@@ -10,9 +12,45 @@ interface OrderQuickViewProps {
     isOpen: boolean;
     onClose: () => void;
     onReviewImage: (imageId: string, status: 'approved' | 'rejected') => void;
+    onRefresh?: () => void;
 }
 
-export default function OrderQuickView({ order, images, isOpen, onClose, onReviewImage }: OrderQuickViewProps) {
+export default function OrderQuickView({ order, images, isOpen, onClose, onReviewImage, onRefresh }: OrderQuickViewProps) {
+    const [isUploading, setIsUploading] = useState(false);
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || !e.target.files[0]) return;
+        const file = e.target.files[0];
+
+        try {
+            setIsUploading(true);
+            await uploadImage(file, order.id, 'primary');
+            if (onRefresh) onRefresh();
+        } catch (error) {
+            console.error("Upload failed", error);
+            alert("Upload failed: " + (error as Error).message);
+        } finally {
+            setIsUploading(false);
+            // reset input
+            e.target.value = '';
+        }
+    };
+
+    const handleDelete = async (imageId: string, storagePath: string) => {
+        if (!confirm('Are you sure you want to delete this image?')) return;
+        try {
+            setIsDeleting(imageId);
+            await deleteImage(imageId, storagePath);
+            if (onRefresh) onRefresh();
+        } catch (error) {
+            console.error("Delete failed", error);
+            alert("Delete failed.");
+        } finally {
+            setIsDeleting(null);
+        }
+    };
+
     // Separate images by status
     const pendingImages = images.filter(img => img.status === 'pending_review');
     const approvedImages = images.filter(img => img.status === 'approved');
@@ -43,10 +81,20 @@ export default function OrderQuickView({ order, images, isOpen, onClose, onRevie
                         <div className="p-6 border-b border-zinc-200 flex justify-between items-start bg-zinc-50/50">
                             <div>
                                 <h2 className="text-xl font-bold text-brand-navy font-playfair">{order.customer_name}</h2>
-                                <div className="flex gap-2 text-sm mt-1">
+                                <div className="flex gap-2 text-sm mt-1 items-center">
                                     <span className="text-brand-navy/70 font-medium">{order.product_type}</span>
                                     <span className="text-zinc-300">•</span>
                                     <span className="text-zinc-500">{order.pet_name}</span>
+                                    <span className="text-zinc-300">•</span>
+                                    <a
+                                        href={`${window.location.origin}/customer/gallery/${order.id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-brand-blue hover:text-brand-navy hover:underline flex items-center gap-1"
+                                    >
+                                        <LinkIcon className="w-3 h-3" />
+                                        View Portal
+                                    </a>
                                 </div>
                             </div>
                             <button
@@ -117,6 +165,17 @@ export default function OrderQuickView({ order, images, isOpen, onClose, onRevie
                                                         <Check className="w-5 h-5" />
                                                     </button>
                                                 </div>
+                                                {/* Delete Button (Pending) */}
+                                                {!img.is_selected && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDelete(img.id, img.storage_path || ''); }}
+                                                        disabled={isDeleting === img.id}
+                                                        className="absolute top-2 right-2 p-1.5 bg-white/80 hover:bg-rose-500 hover:text-white text-rose-500 rounded-full transition-colors opacity-0 group-hover:opacity-100 z-10"
+                                                        title="Delete Image"
+                                                    >
+                                                        {isDeleting === img.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                    </button>
+                                                )}
 
                                                 <div className="absolute bottom-0 inset-x-0 p-3 bg-white/90 backdrop-blur-md border-t border-white/20">
                                                     <span className="text-brand-navy text-sm font-medium">{img.theme_name}</span>
@@ -138,9 +197,18 @@ export default function OrderQuickView({ order, images, isOpen, onClose, onRevie
                                         {approvedImages.map(img => (
                                             <div key={img.id} className="relative aspect-[3/4] rounded-lg overflow-hidden border border-green-200 opacity-90 hover:opacity-100 transition-opacity">
                                                 <Image src={img.url} alt="Approved" fill className="object-cover" />
-                                                <div className="absolute top-2 right-2 p-1 bg-green-500 rounded-full text-white shadow-sm">
+                                                <div className="absolute top-2 right-2 p-1 bg-green-500 rounded-full text-white shadow-sm z-10">
                                                     <Check className="w-3 h-3" />
                                                 </div>
+                                                {/* Delete Button (Approved) - Only if not selected (maybe?) or just warn */}
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleDelete(img.id, img.storage_path || ''); }}
+                                                    disabled={isDeleting === img.id}
+                                                    className="absolute top-2 left-2 p-1.5 bg-white/80 hover:bg-rose-500 hover:text-white text-rose-500 rounded-full transition-colors opacity-0 hover:opacity-100 z-10"
+                                                    title="Delete Image"
+                                                >
+                                                    {isDeleting === img.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
@@ -170,21 +238,36 @@ export default function OrderQuickView({ order, images, isOpen, onClose, onRevie
                         </div>
 
                         {/* Footer Actions */}
-                        <div className="p-6 border-t border-zinc-200 bg-zinc-50/50 flex justify-end gap-3">
-                            <button
-                                onClick={onClose}
-                                className="px-4 py-2 text-zinc-500 hover:text-brand-navy transition-colors text-sm font-medium"
-                            >
-                                Close
-                            </button>
-                            <a
-                                href={`/admin/orders/${order.id}`} // Assuming detailed page exists
-                                className="px-5 py-2 btn-primary rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
-                            >
-                                Full Order Details
-                                <ExternalLink className="w-4 h-4" />
-                            </a>
-                        </div>
+                        <div className="p-6 border-t border-zinc-200 bg-zinc-50/50 flex justify-between gap-3 items-center">
+                            <div className="flex items-center gap-2">
+                                <label className={`flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg shadow-sm cursor-pointer hover:border-brand-navy hover:text-brand-navy transition-colors text-sm font-medium ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                    {isUploading ? 'Uploading...' : 'Upload Image'}
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/*"
+                                        disabled={isUploading}
+                                        onChange={handleUpload}
+                                    />
+                                </label>
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={onClose}
+                                    className="px-4 py-2 text-zinc-500 hover:text-brand-navy transition-colors text-sm font-medium"
+                                >
+                                    Close
+                                </button>
+                                <a
+                                    href={`/admin/orders/${order.id}`} // Assuming detailed page exists
+                                    className="px-5 py-2 btn-primary rounded-lg text-sm font-bold flex items-center gap-2 transition-colors"
+                                >
+                                    Full Order Details
+                                    <ExternalLink className="w-4 h-4" />
+                                </a>
+                            </div>
 
                     </motion.div>
                 </>

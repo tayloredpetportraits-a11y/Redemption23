@@ -254,6 +254,7 @@ export default function AdminDashboardPage() {
           isOpen={!!quickViewOrder}
           onClose={() => setQuickViewOrder(null)}
           onReviewImage={handleReviewImage}
+          onRefresh={fetchData}
         />
       )}
 
