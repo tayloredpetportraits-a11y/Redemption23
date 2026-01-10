@@ -1,6 +1,7 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import AdminSidebar from './_components/AdminSidebar';
 
 export default function AdminLayout({
@@ -9,25 +10,21 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { replace } = useRouter();
 
-  if (pathname === '/admin/login') {
-    return <>{children}</>;
-  }
-
-  // Client-side Auth Guard (Backup to Middleware)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { replace } = require('next/navigation').useRouter();
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { useEffect } = require('react');
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     // Simple check for the cookie. For stricter check, we rely on API calls or Middleware.
     if (!document.cookie.includes('admin-token=authenticated')) {
       // verify we are not already on login (handled above)
-      replace('/admin/login');
+      if (pathname !== '/admin/login') {
+        replace('/admin/login');
+      }
     }
   }, [pathname, replace]);
+
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50 text-zinc-900">
