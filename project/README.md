@@ -29,7 +29,7 @@ A modern web application for digital pet portrait businesses to deliver custom a
 - **Styling:** Tailwind CSS
 - **Database:** Supabase (PostgreSQL)
 - **Payments:** Stripe
-- **Hosting:** Netlify
+- **Hosting:** Vercel
 - **Animations:** Framer Motion
 - **Icons:** Lucide React
 
@@ -39,7 +39,7 @@ A modern web application for digital pet portrait businesses to deliver custom a
 - Node.js 18.x or higher
 - Supabase account
 - Stripe account (for payments)
-- Netlify account (for deployment)
+- Vercel account (for deployment)
 
 ### Local Development
 
@@ -74,14 +74,14 @@ A modern web application for digital pet portrait businesses to deliver custom a
 
 See detailed deployment guides:
 - **[GitHub Export Guide](GITHUB_EXPORT_GUIDE.md)** - Complete step-by-step instructions
-- **[Deployment Guide](DEPLOYMENT.md)** - Netlify configuration and troubleshooting
-- **[Quick Checklist](NETLIFY_DEPLOY_CHECKLIST.md)** - Fast reference for deployment
+- **[Deployment Guide](DEPLOYMENT.md)** - Vercel configuration and troubleshooting
 
-### Quick Deploy to Netlify
+
+### Quick Deploy to Vercel
 
 1. Push code to GitHub
-2. Connect repository to Netlify
-3. Set environment variables in Netlify Dashboard
+2. Connect repository to Vercel
+3. Set environment variables in Vercel Dashboard
 4. Deploy site
 5. Configure Stripe webhook with deployed URL
 6. Test payment flow
@@ -126,7 +126,7 @@ STRIPE_WEBHOOK_SECRET=your_webhook_secret
 ├── supabase/
 │   └── migrations/            # Database schema and migrations
 ├── public/                    # Static assets
-├── netlify.toml              # Netlify configuration
+
 └── next.config.js            # Next.js configuration
 ```
 
@@ -245,8 +245,8 @@ Private - All rights reserved
 
 For deployment issues, see documentation:
 - [GitHub Export Guide](GITHUB_EXPORT_GUIDE.md)
+- [GitHub Export Guide](GITHUB_EXPORT_GUIDE.md)
 - [Deployment Guide](DEPLOYMENT.md)
-- [Quick Checklist](NETLIFY_DEPLOY_CHECKLIST.md)
 
 ---
 

@@ -6,7 +6,7 @@ Use this checklist before exporting to GitHub to ensure everything is ready.
 
 ### Configuration Files ✓
 - [x] `package.json` - All dependencies listed
-- [x] `netlify.toml` - Build command: `npm run build`
+
 - [x] `.node-version` - Node.js 18.18.0 specified
 - [x] `next.config.js` - Properly configured
 - [x] `tsconfig.json` - TypeScript configuration
@@ -22,7 +22,7 @@ Use this checklist before exporting to GitHub to ensure everything is ready.
 - [x] `README.md` - Project overview
 - [x] `GITHUB_EXPORT_GUIDE.md` - Step-by-step export instructions
 - [x] `DEPLOYMENT.md` - Detailed deployment guide
-- [x] `NETLIFY_DEPLOY_CHECKLIST.md` - Quick reference
+
 - [x] `STRIPE_SETUP.md` - Stripe configuration guide
 
 ### Source Code ✓
@@ -63,7 +63,7 @@ Look for any files in the "Untracked files" section that contain secrets.
 
 ## Environment Variables to Set in Netlify
 
-After pushing to GitHub, you'll need to set these in Netlify:
+After pushing to GitHub, you'll need to set these in your hosting provider (e.g. Vercel):
 
 ### Required (7 variables)
 - [ ] `NEXT_PUBLIC_SUPABASE_URL`
@@ -140,7 +140,7 @@ After pushing to GitHub:
 
 After successful GitHub export:
 
-1. Go to [Netlify](https://app.netlify.com)
+1. Go to your hosting provider (e.g. Vercel)
 2. Import your repository
 3. Set environment variables
 4. Deploy site
@@ -195,7 +195,7 @@ git commit -m "Remove large file"
 
 **ALWAYS:**
 - Use `.env.example` with placeholder values
-- Store real values in Netlify environment variables
+- Store real values in hosting environment variables
 - Keep `.env` in `.gitignore`
 - Use different passwords for development and production
 
