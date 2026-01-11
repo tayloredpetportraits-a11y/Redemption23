@@ -31,8 +31,34 @@ export class PrintifyService {
     static async createOrder(details: OrderDetails) {
         console.log(`[Printify] Preparing order for ${details.orderId} (${details.productType})`);
 
-        // 1. Resolve Product Config
-        const config = PRINTIFY_PRODUCT_MAP[details.productType];
+        // 1. Resolve Product Config (DB First, then Hardcoded)
+        let config = PRINTIFY_PRODUCT_MAP[details.productType];
+
+        // Try DB Lookup
+        try {
+            const { PrintifySyncService } = await import('./sync-service');
+            const syncedProducts = await PrintifySyncService.getSyncedProducts();
+
+            // Fuzzy match: Does the synced title contain the order product type string?
+            // e.g. Synced: "11x14 Premium Canvas", Order: "canvas-11x14" (fuzzy)
+            // Or usually Order is "11x14 Canvas".
+            const match = syncedProducts.find(p =>
+                p.title.toLowerCase().includes(details.productType.toLowerCase()) ||
+                details.productType.toLowerCase().includes(p.title.toLowerCase())
+            );
+
+            if (match) {
+                console.log(`[Printify] Fulfillment: Matched to Synced Product "${match.title}"`);
+                config = {
+                    blueprint_id: match.blueprint_id,
+                    print_provider_id: match.print_provider_id,
+                    variant_id: match.variants?.[0]?.id || 0 // Use first variant or smart match later
+                };
+            }
+        } catch (e) {
+            console.error("Error resolving synced product for fulfillment:", e);
+        }
+
         if (!config || config.blueprint_id === 0) {
             console.warn(`[Printify] Skipping: No valid printify config for ${details.productType}`);
             return null;
@@ -84,7 +110,11 @@ export class PrintifyService {
                     print_areas: {
                         front: [
                             {
-                                src: details.imageUrl, // Must be a public URL
+                                src: details.imageUrl,
+                                x: 0.5,
+                                y: 0.5,
+                                scale: 1,
+                                angle: 0
                             }
                         ]
                     },
@@ -143,16 +173,14 @@ export class PrintifyService {
      * Generates a realistic mockup using the Printify API.
      * FLOW: Create Product -> Get Mockup Images -> Delete Product
      */
-    static async generateMockupImage(imageUrl: string, productType: string): Promise<string | null> {
+    static async generateMockupImage(imageUrl: string, productType: string, configOverride?: any): Promise<string | null> {
         if (!this.TOKEN || !this.SHOP_ID) {
             console.warn('[Printify] Missing API Token or Shop ID for mockup generation.');
             return null;
         }
 
         // 1. Resolve Config
-        // Use a default fallback if specific type is missing, to ensure we test valid IDs
-        // Fallback to "Mug" (Blueprint 68, Provider 16, Variant 12345 (Generic)) or Canvas
-        let config = PRINTIFY_PRODUCT_MAP[productType];
+        let config = configOverride || PRINTIFY_PRODUCT_MAP[productType];
 
         // AUTO-FIX: If config indicates placeholder "0" or "1234", use a Real Printify ID for testing
         // Blueprint 68 = Mug, Provider 16 = Spoke Custom, Variant 13398 = 11oz Ceramic
@@ -192,7 +220,7 @@ export class PrintifyService {
                                         id: imageId, // Use ID instead of src
                                         x: 0.5,
                                         y: 0.5,
-                                        scale: 1,
+                                        scale: 1.5, // Force Full Bleed
                                         angle: 0
                                     }
                                 ]
@@ -255,6 +283,99 @@ export class PrintifyService {
         } catch (e) {
             console.error('[Printify] Generate Mockup Failed:', e);
             return null;
+        }
+    }
+    static async generateAllMockups(imageUrl: string, productType: string): Promise<{ src: string, label: string, is_default: boolean }[]> {
+        if (!this.TOKEN || !this.SHOP_ID) return [];
+
+        let config = PRINTIFY_PRODUCT_MAP[productType];
+        if (!config || config.blueprint_id < 100) return [];
+
+        console.log(`[Printify] Generating ALL Mockups for ${productType}...`);
+
+        try {
+            const imageId = await this.uploadImage(imageUrl);
+            if (!imageId) throw new Error("Failed to upload image to Printify");
+
+            const createPayload = {
+                title: "Temp Mockup Product " + Date.now(),
+                description: "Temporary product for mockup generation",
+                blueprint_id: config.blueprint_id,
+                print_provider_id: config.print_provider_id,
+                variants: [
+                    { id: config.variant_id, price: 1000, is_enabled: true }
+                ],
+                print_areas: [
+                    {
+                        variant_ids: [config.variant_id],
+                        placeholders: [
+                            {
+                                position: "front",
+                                images: [
+                                    {
+                                        id: imageId,
+                                        x: 0.5,
+                                        y: 0.5,
+                                        scale: 1.5, // Force Full Bleed
+                                        angle: 0
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            };
+
+            const createResp = await fetch(`${this.API_BASE}/shops/${this.SHOP_ID}/products.json`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.TOKEN}` },
+                body: JSON.stringify(createPayload)
+            });
+
+            const product = await createResp.json();
+            if (!product.id) {
+                console.error('[Printify] Failed to create temp product:', product);
+                return [];
+            }
+            console.log(`[Printify] Temp Product Created: ${product.id}`);
+
+            // Wait a bit for images to be ready?
+            let images = product.images || [];
+
+            // If no images, try fetching
+            if (images.length === 0) {
+                const getRes = await fetch(`${this.API_BASE}/shops/${this.SHOP_ID}/products/${product.id}.json`, {
+                    headers: { 'Authorization': `Bearer ${this.TOKEN}` }
+                });
+                const fullProd = await getRes.json();
+                images = fullProd.images || [];
+            }
+
+            const results = images.map((img: any) => {
+                let label = img.camera_label;
+                if (!label && img.src) {
+                    const match = img.src.match(/camera_label=([^&]+)/);
+                    if (match) label = match[1];
+                }
+                return {
+                    src: img.src,
+                    label: label || 'view-' + Math.floor(Math.random() * 1000), // Fallback
+                    is_default: img.is_default
+                };
+            });
+
+            // Delete
+            await fetch(`${this.API_BASE}/shops/${this.SHOP_ID}/products/${product.id}.json`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${this.TOKEN}` }
+            });
+            console.log(`[Printify] Temp Product Deleted. Captured ${results.length} images.`);
+
+            return results;
+
+        } catch (e) {
+            console.error('[Printify] Generate ALL Mockups Failed:', e);
+            return [];
         }
     }
 }

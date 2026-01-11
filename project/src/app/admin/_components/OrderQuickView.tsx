@@ -268,6 +268,7 @@ export default function OrderQuickView({ order, images, isOpen, onClose, onRevie
                                     <ExternalLink className="w-4 h-4" />
                                 </a>
                             </div>
+                        </div>
 
                     </motion.div>
                 </>

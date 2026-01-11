@@ -7,13 +7,11 @@ import { motion } from 'framer-motion';
 import type { Image as ImageType } from '@/lib/supabase/client';
 import { MockupGenerator } from '../MockupEngine/MockupGenerator';
 import UpsellFunnel from '../UpsellFunnel';
+import { type Product } from '@/lib/config';
 
-interface Product {
-    id: string;
-    name: string;
-    price: number;
-    description: string;
-}
+// Sub-components
+import SocialConsent from './components/SocialConsent';
+import ProductSelector from './components/ProductSelector';
 
 interface StepTwoRedemptionProps {
     orderId: string;
@@ -30,21 +28,24 @@ interface StepTwoRedemptionProps {
 
     onConfirm: () => void;
     onRequestRevision: () => void;
+    onPrev: () => void;
 }
 
 export default function StepTwoRedemption({
     orderId,
     petName,
     images,
+    mockupImages,
     products,
     selectedImageId,
     setSelectedImageId,
     printProduct,
     setPrintProduct,
     notes,
-    setNotes,
+
     onConfirm,
-    onRequestRevision
+    onRequestRevision,
+    onPrev
 }: StepTwoRedemptionProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -53,15 +54,34 @@ export default function StepTwoRedemption({
     const [socialConsent, setSocialConsent] = useState(false);
     const [instagramHandle, setInstagramHandle] = useState('');
 
+    const [activeViewIndex, setActiveViewIndex] = useState(0);
+
+    // Filter for relevant Multi-View Mockups (e.g. Canvas Front, Side)
+    const currentProductObj = products.find(p => p.id === printProduct);
+    const productName = currentProductObj?.name.toLowerCase() || '';
+
+    const multiViewMockups = mockupImages.filter(m => {
+        if (!m.theme_name) return false;
+
+        const theme = m.theme_name.toLowerCase();
+        // Canvas Logic
+        if (productName.includes('canvas') && theme.includes('canvas')) return true;
+        // Tumbler
+        if (productName.includes('tumbler') && theme.includes('tumbler')) return true;
+        // Bear
+        if (productName.includes('bear') && theme.includes('bear')) return true;
+
+        return false;
+    });
+
+    // Reset view index when product changes or portraits change
+    useEffect(() => {
+        setActiveViewIndex(0);
+    }, [printProduct, selectedImageId]);
+
     // Glossy Mockup State (Progressive Enhancement)
     const [glossUrl, setGlossUrl] = useState<string | null>(null);
     const [isGlossing, setIsGlossing] = useState(false);
-
-    // Import Server Action (Dynamically if needed, but static import is fine)
-    // We need to move the import to top of file normally, but I'll add the hook logic here.
-
-    // Check for existing AI mockup from DB first (Persisted Gloss)
-    // If we have a pre-generated logic from 'mockupImages' prop, we use it as initial glossUrl.
 
     // Effect: Trigger Gloss Generation on change
     useEffect(() => {
@@ -73,25 +93,12 @@ export default function StepTwoRedemption({
         const selectedImg = images.find(i => i.id === selectedImageId);
         if (!selectedImg) return;
 
-        // Check if we ALREADY have a high-quality mockup for this specific combo in `mockupImages`
-        // Logic: specific theme name match?
-        // Actually, we can just trigger the server action. It should be smart enough to return existing URL if cached/found.
-        // For now, let's reset to allow the "Polishing" effect which delights users, 
-        // OR use existing if found to be instant.
-
-        // Let's try to find existing first
-        // ... (Logic from previous findMockupUrl)
-
         setIsGlossing(true);
         setGlossUrl(null); // Reset to show client-side first while loading new one
 
         const timer = setTimeout(async () => {
             try {
-                // Import specifically here to avoid top-level server-client issues if any, 
-                // though 'import { generateGlossMockup }' at top is better. 
-                // I will assume top-level import is added or I will add it in a separate edit.
-
-                // CALL SERVER ACTION
+                // Dynamically import server action
                 const { generateGlossMockup } = await import('@/app/actions/generate-gloss');
                 const result = await generateGlossMockup(orderId, selectedImg.url, printProduct, selectedImageId);
 
@@ -163,54 +170,26 @@ export default function StepTwoRedemption({
         }
     };
 
-    const handleRequestRevision = async () => {
-        if (!selectedImageId) {
-            setError('Please select the image you want revised.');
-            return;
-        }
-        if (!notes.trim()) {
-            setError('Please describe what changes you would like deeply in the "Requests" box above.');
-            return;
-        }
-
-        setLoading(true);
-        setError('');
-
-        try {
-            const response = await fetch(`/api/customer/${orderId}/revision`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    selectedImageId,
-                    notes,
-                }),
-            });
-
-            if (response.ok) {
-                onRequestRevision();
-            } else {
-                throw new Error('Failed to submit revision');
-            }
-        } catch {
-            setError('Something went wrong submitting your revision. Please try again.');
-        } finally {
-            setLoading(false);
-        }
+    const handleRequestRevision = () => {
+        onRequestRevision();
     };
 
     const selectedImageUrl = images.find(img => img.id === selectedImageId)?.url;
 
-    // Helper to find specific AI Mockup if available
-    // Helper to find specific AI Mockup if available
-
-
-
-
     return (
         <div className="space-y-8 max-w-4xl mx-auto px-4 sm:px-0">
             <div className="text-center space-y-2">
-                <h2 className="text-2xl md:text-3xl font-bold text-brand-navy font-playfair">Step 2: Customise Your Art</h2>
+                <h2 className="text-2xl md:text-3xl font-bold text-brand-navy font-playfair">Step 2: Customize Your Art</h2>
                 <p className="text-zinc-500 text-lg">Select your favorite portrait and choose a size.</p>
+            </div>
+
+            <div className="flex items-center justify-between mb-2">
+                <button
+                    onClick={onPrev}
+                    className="flex items-center gap-2 text-zinc-500 hover:text-brand-navy transition-colors font-medium"
+                >
+                    <span className="text-lg">←</span> Back
+                </button>
             </div>
 
             <div className="grid lg:grid-cols-2 gap-8 items-start">
@@ -219,49 +198,93 @@ export default function StepTwoRedemption({
                     <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wide text-center">Live Preview</h3>
                     <div className="relative aspect-square bg-white rounded-2xl overflow-hidden shadow-xl shadow-brand-navy/5 border border-zinc-200 group">
 
-                        {/* 1. Priority: Glossy AI Mockup (Lazy Loaded) */}
-                        {/* 2. Fallback: Client-Side Immediate Mockup */}
-                        <div className="relative w-full h-full">
-                            {/* Base: Client-Side Generator (Always rendered first) */}
-                            <div className={`absolute inset-0 transition-opacity duration-1000 ${glossUrl ? 'opacity-0' : 'opacity-100'}`}>
-                                <MockupGenerator
-                                    productType={printProduct}
-                                    imageUrl={selectedImageUrl || null}
-                                />
-                            </div>
-
-                            {/* Overlay: Glossy AI Image (Fades in when ready) */}
-                            {glossUrl && (
+                        {multiViewMockups.length > 0 ? (
+                            <div className="relative w-full h-full">
                                 <motion.div
+                                    key={activeViewIndex}
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
-                                    transition={{ duration: 1 }}
-                                    className="absolute inset-0 z-10"
+                                    transition={{ duration: 0.3 }}
+                                    className="relative w-full h-full"
                                 >
                                     <Image
-                                        src={glossUrl}
-                                        alt="Glossy Preview"
+                                        src={multiViewMockups[activeViewIndex].url}
+                                        alt={multiViewMockups[activeViewIndex].theme_name || 'Mockup'}
                                         fill
-                                        priority={true}
-                                        className="object-cover"
+                                        className="object-contain"
+                                        priority
                                     />
-                                    {/* Sparkle Effect on Load */}
-                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 animate-shimmer pointer-events-none" />
                                 </motion.div>
-                            )}
-
-                            {/* Loading Indicator for Gloss (Subtle) */}
-                            {isGlossing && !glossUrl && (
-                                <div className="absolute top-4 right-4 z-20">
-                                    <div className="bg-white/80 backdrop-blur-md text-xs font-medium text-brand-navy px-2 py-1 rounded-full shadow-sm flex items-center gap-1.5">
-                                        <Loader2 className="w-3 h-3 animate-spin text-brand-blue" />
-                                        <span>Polishing...</span>
-                                    </div>
+                                {/* View Selector (Floating) */}
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-white/80 backdrop-blur-md p-1.5 rounded-full shadow-sm z-20">
+                                    {multiViewMockups.map((m, idx) => (
+                                        <button
+                                            key={m.id}
+                                            onClick={(e) => { e.stopPropagation(); setActiveViewIndex(idx); }}
+                                            className={`w-2 h-2 rounded-full transition-all ${idx === activeViewIndex ? 'bg-brand-navy w-4' : 'bg-zinc-300 hover:bg-brand-navy/50'
+                                                }`}
+                                        />
+                                    ))}
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        ) : (
+                            <div className="relative w-full h-full">
+                                {/* Base: Client-Side Generator (Always rendered first) */}
+                                <div className={`absolute inset-0 transition-opacity duration-1000 ${glossUrl ? 'opacity-0' : 'opacity-100'}`}>
+                                    <MockupGenerator
+                                        productType={printProduct}
+                                        imageUrl={selectedImageUrl || null}
+                                    />
+                                </div>
 
+                                {/* Overlay: Glossy AI Image (Fades in when ready) */}
+                                {glossUrl && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ duration: 1 }}
+                                        className="absolute inset-0 z-10"
+                                    >
+                                        <Image
+                                            src={glossUrl}
+                                            alt="Glossy Preview"
+                                            fill
+                                            priority={true}
+                                            className="object-contain"
+                                        />
+                                        {/* Sparkle Effect on Load */}
+                                        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 animate-shimmer pointer-events-none" />
+                                    </motion.div>
+                                )}
+
+                                {/* Loading Indicator for Gloss (Subtle) */}
+                                {isGlossing && !glossUrl && (
+                                    <div className="absolute top-4 right-4 z-20">
+                                        <div className="bg-white/80 backdrop-blur-md text-xs font-medium text-brand-navy px-2 py-1 rounded-full shadow-sm flex items-center gap-1.5">
+                                            <Loader2 className="w-3 h-3 animate-spin text-brand-blue" />
+                                            <span>Polishing...</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
+
+                    {/* Multi-View Thumbnails (If available) */}
+                    {multiViewMockups.length > 0 && (
+                        <div className="flex justify-center gap-2">
+                            {multiViewMockups.map((m, idx) => (
+                                <button
+                                    key={m.id}
+                                    onClick={() => setActiveViewIndex(idx)}
+                                    className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${idx === activeViewIndex ? 'border-brand-navy ring-2 ring-brand-navy/20' : 'border-zinc-200 opacity-70 hover:opacity-100'
+                                        }`}
+                                >
+                                    <Image src={m.url} alt="view" fill className="object-cover" />
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Size Label */}
                     <div className="text-center">
@@ -280,7 +303,7 @@ export default function StepTwoRedemption({
                                     <h3 className="text-sm font-bold text-brand-navy uppercase tracking-wide">1. Select Portrait</h3>
                                     <span className="text-xs text-zinc-500">{images.length} Options</span>
                                 </div>
-                                <div className="grid grid-cols-4 gap-2 max-h-64 overflow-y-auto p-1 custom-scrollbar">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-64 overflow-y-auto p-1 custom-scrollbar">
                                     {images.map((image) => (
                                         <div
                                             key={image.id}
@@ -300,86 +323,38 @@ export default function StepTwoRedemption({
                             </section>
                         )}
 
-                        {/* 2. Select Product (Size) */}
-                        <section className="space-y-3">
-                            <h3 className="text-sm font-bold text-brand-navy uppercase tracking-wide">2. Choose Size</h3>
-                            <div className="grid grid-cols-2 gap-3">
-                                {products.map((product) => (
-                                    <div
-                                        key={product.id}
-                                        onClick={() => setPrintProduct(product.id)}
-                                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${printProduct === product.id
-                                            ? 'border-brand-navy bg-brand-blue/10 shadow-md transform scale-[1.02]'
-                                            : 'border-zinc-200 bg-white hover:border-brand-blue/50 hover:shadow-lg'
-                                            }`}
-                                    >
-                                        <div className="font-bold text-brand-navy text-lg">{product.name}</div>
-                                        <div className="text-sm text-zinc-500 mt-1">{product.description}</div>
-                                        <div className="text-brand-navy font-bold mt-2 text-base">${product.price}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
+                        {/* 2. Select Product (Size) - Using Subcomponent */}
+                        <ProductSelector
+                            products={products}
+                            printProduct={printProduct}
+                            setPrintProduct={setPrintProduct}
+                        />
 
-                        {/* 3. Requests */}
-                        <section className="space-y-3">
-                            <h3 className="text-sm font-bold text-brand-navy uppercase tracking-wide">Requests?</h3>
-                            <textarea
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                                placeholder="e.g. Remove the glare, lighter fur..."
-                                className="w-full bg-white border border-zinc-200 rounded-xl p-4 text-base text-brand-navy placeholder:text-zinc-400 focus:ring-2 focus:ring-brand-blue/50 outline-none h-32 resize-none shadow-inner"
-                            />
-                        </section>
-
-                        {/* 4. Social Media Shoutout */}
-                        <section className="space-y-4 pt-4 border-t border-zinc-100">
-                            <div className="flex items-start gap-3">
-                                <div className="flex items-center h-6">
-                                    <input
-                                        id="social-consent"
-                                        type="checkbox"
-                                        checked={socialConsent}
-                                        onChange={(e) => setSocialConsent(e.target.checked)}
-                                        className="h-5 w-5 rounded border-zinc-300 text-brand-navy focus:ring-brand-navy/50"
-                                    />
-                                </div>
-                                <div className="space-y-2 flex-1">
-                                    <label htmlFor="social-consent" className="text-base font-medium text-brand-navy cursor-pointer">
-                                        Feature my pet on social media? 📸
-                                    </label>
-                                    <p className="text-sm text-zinc-500">
-                                        We love showing off our furry friends! Check this box if you&apos;re okay with us sharing this portrait on our Instagram/Facebook.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {socialConsent && (
-                                <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    className="pl-8"
-                                >
-                                    <label htmlFor="instagram-handle" className="block text-sm font-medium text-brand-navy mb-1">
-                                        Your Instagram Handle (Optional)
-                                    </label>
-                                    <input
-                                        id="instagram-handle"
-                                        type="text"
-                                        value={instagramHandle}
-                                        onChange={(e) => setInstagramHandle(e.target.value)}
-                                        placeholder="@yourpet"
-                                        className="w-full bg-white border border-zinc-200 rounded-lg px-4 py-2.5 text-base text-brand-navy placeholder:text-zinc-400 focus:ring-2 focus:ring-brand-blue/50 outline-none shadow-sm"
-                                    />
-                                    <p className="text-xs text-zinc-400 mt-1">So we can tag you!</p>
-                                </motion.div>
-                            )}
-                        </section>
+                        {/* 4. Social Media Shoutout - Using Subcomponent */}
+                        <SocialConsent
+                            petName={petName}
+                            socialConsent={socialConsent}
+                            setSocialConsent={setSocialConsent}
+                            instagramHandle={instagramHandle}
+                            setInstagramHandle={setInstagramHandle}
+                        />
                     </div>
                 </div>
 
                 {/* Confirm Buttons - Placed in the right column on larger screens or below on mobile */}
-                <div className="lg:mt-0 pt-6 lg:pt-0  space-y-4 pb-12">
+                <div className="lg:mt-0 pt-6 lg:pt-0 space-y-4 pb-24 md:pb-12">
+                    {/* Testimonial Block */}
+                    <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100 flex gap-3">
+                        <div className="flex-shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-brand-navy/10 flex items-center justify-center text-lg">🐶</div>
+                        </div>
+                        <div>
+                            <div className="flex text-amber-400 mb-1">★★★★★</div>
+                            <p className="text-zinc-600 text-sm italic pr-2">&quot;The quality of the canvas is incredible. Best gift I&apos;ve ever given!&quot;</p>
+                            <p className="text-zinc-400 text-xs mt-1 font-medium">- Jessica M.</p>
+                        </div>
+                    </div>
+
                     {/* Error Message */}
                     {error && (
                         <div className="text-rose-600 text-center bg-rose-50 p-4 rounded-xl border border-rose-100 text-base font-medium">
@@ -387,6 +362,7 @@ export default function StepTwoRedemption({
                         </div>
                     )}
 
+                    {/* Desktop/Tablet Main Button */}
                     <button
                         onClick={handleConfirm}
                         disabled={(!selectedImageId && printProduct !== 'digital') || !printProduct || loading}
@@ -411,6 +387,17 @@ export default function StepTwoRedemption({
                     </button>
                 </div>
 
+                {/* Sticky Mobile CTA */}
+                <div className="fixed bottom-0 inset-x-0 p-4 bg-white border-t border-zinc-200 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] md:hidden z-40">
+                    <button
+                        onClick={handleConfirm}
+                        disabled={(!selectedImageId && printProduct !== 'digital') || !printProduct || loading}
+                        className="w-full btn-primary py-4 text-lg font-bold rounded-xl shadow-lg disabled:opacity-50"
+                    >
+                        {loading ? "Processing..." : (printProduct === 'digital' ? "Proceed to Delivery" : "Confirm & Print")}
+                    </button>
+                </div>
+
                 {/* Upsell Modal */}
                 {showUpsell && selectedImageUrl && (
                     <UpsellFunnel
@@ -422,16 +409,12 @@ export default function StepTwoRedemption({
                             setShowUpsell(false);
                         }}
                         onDecline={() => {
-                            // Force submit with current image ID if one exists, relying on state might be slightly delayed but Upsell modal doesn't change it.
-                            // Better: pass dependencies or use ref? 
-                            // Actually, just calling submitOrder() relies on 'selectedImageId' which should be stable by now (Upsell doesn't change it).
                             setShowUpsell(false);
-                            // We need to trigger the submit, potentially with the default ID if it was digital
                             let finalId = selectedImageId;
                             if (printProduct === 'digital' && !finalId && images.length > 0) {
                                 finalId = images[0].id;
                             }
-                            submitOrder(finalId || null); // Pass explicit ID
+                            submitOrder(finalId || null);
                         }}
                     />
                 )}

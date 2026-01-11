@@ -12,8 +12,7 @@ dotenv.config({ path: '.env.local' });
 // Actually, I'll rely on ts-node to run this.
 
 // Import the function to test
-// Note: We need to use relative paths for imports if we run this with ts-node from project root
-import { generateImagesForOrder } from './src/lib/ai/generation';
+import { generateImagesForOrder } from '@/lib/ai/generation';
 // import { uploadFile, getPublicUrl } from './src/lib/supabase/storage'; // This might fail if it relies on other alias imports
 
 // Redefine storage helpers to avoid Alias Resolution hell if tsconfig-paths not set up for the runner
@@ -57,7 +56,7 @@ async function runTest() {
     const { data: order, error: orderError } = await supabase.from('orders').insert({
         customer_email: 'e2e_tester@example.com',
         customer_name: 'E2E Tester',
-        product_type: 'royalty',
+        product_type: 'Canvas',
         pet_image_url: publicUrl,
         status: 'pending',
         pet_breed: 'Golden Retriever',
@@ -77,7 +76,7 @@ async function runTest() {
         await generateImagesForOrder(
             order.id,
             publicUrl, // Use the public URL we just created
-            'royalty',
+            'Canvas',
             'Golden Retriever',
             'Happy dog, smiling',
             false // autoApprove

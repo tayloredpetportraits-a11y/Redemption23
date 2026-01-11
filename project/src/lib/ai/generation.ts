@@ -9,7 +9,10 @@ import { uploadFile, getPublicUrl } from '@/lib/supabase/storage';
 // const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
 const MODEL_NAME = "models/nano-banana-pro-preview";
 
+import { PRINTIFY_PRODUCT_MAP } from '@/lib/printify/config';
 import sharp from 'sharp';
+import { MockupTemplateService } from '@/lib/mockup-templates/service';
+import { PrintifySyncService } from '@/lib/printify/sync-service';
 
 // Helper to upscale image for print
 async function upscaleImage(inputBuffer: Buffer): Promise<Buffer> {
@@ -92,7 +95,7 @@ export async function applyHeavyWatermark(inputBuffer: Buffer): Promise<Buffer> 
 }
 
 // Helper to get templates
-function getTemplatesForTheme(themeId: string, limit: number = 5): string[] {
+export function getTemplatesForTheme(themeId: string, limit: number = 5): string[] {
     // Normalize themeId
     const mappings: Record<string, string> = {
         'royalty': 'royalty',
@@ -242,6 +245,72 @@ export async function generateProductMockup(portraitSource: Buffer | string, pro
 
 
         // 1. Get Product Base Template
+
+        // 1. Get Product Base Template
+        // NEW: Check for DB Template Key (db:uuid)
+        if (productType.startsWith('db:')) {
+            const tmplId = productType.split(':')[1];
+            try {
+                const dbTmpls = await MockupTemplateService.getTemplates();
+                const match = dbTmpls.find(t => t.id === tmplId);
+                if (match) {
+                    customTemplatePath = match.image_url;
+                    console.log(`[Mockup] Using DB Template: ${match.name}`);
+                    // TODO: Parse match.configuration for future positioning logic?
+                    // For now, Nano Banana assumes centered or wraps.
+                }
+            } catch (e) {
+                console.error("Failed to resolve DB template", e);
+            }
+        }
+
+        // NEW: Check for Synced Product (Native Printify)
+        let nativeConfig = null;
+        if (!customTemplatePath && !productType.startsWith('db:')) {
+            try {
+                const syncedProducts = await PrintifySyncService.getSyncedProducts();
+                // Fuzzy match productType to Title. 
+                // productType often comes as 'canvas-11x14'. 
+                // Synced Product Title might be '11x14 Premium Canvas'.
+                // If productType contains key words?
+
+                // Assuming simple inclusion for now, or direct match if ID passed
+                const matched = syncedProducts.find(p =>
+                    p.title.toLowerCase().includes(productType.toLowerCase()) ||
+                    productType.toLowerCase().includes(p.title.toLowerCase())
+                );
+
+                if (matched) {
+                    console.log(`[Mockup] Found Synced Product: ${matched.title}`);
+                    // Check its mapping
+                    if (matched.mapped_config && matched.mapped_config.startsWith('db:')) {
+                        // It is mapped to a custom template! Redirect logic.
+                        // Recursive call? Or just set customTemplatePath?
+                        // Let's resolve specific db template.
+                        const dbId = matched.mapped_config.split(':')[1];
+                        const dbTmpls = await MockupTemplateService.getTemplates();
+                        const dbMatch = dbTmpls.find(t => t.id === dbId);
+                        if (dbMatch) {
+                            customTemplatePath = dbMatch.image_url;
+                            console.log(`[Mockup] ...Mapped to Custom Template: ${dbMatch.name}`);
+                        }
+                    } else if (matched.blueprint_id && matched.print_provider_id) {
+                        // NATIVE PRINTIFY
+                        // Use the FIRST variant
+                        const variantId = matched.variants?.[0]?.id || 0;
+                        nativeConfig = {
+                            blueprint_id: matched.blueprint_id,
+                            print_provider_id: matched.print_provider_id,
+                            variant_id: variantId
+                        };
+                        console.log(`[Mockup] Using Native Printify Config: BP ${nativeConfig.blueprint_id}`);
+                    }
+                }
+            } catch (e) {
+                console.error("Error matching synced product", e);
+            }
+        }
+
         // Logic update: Support remote URL in customTemplatePath
         if (customTemplatePath) {
             if (customTemplatePath.startsWith('http')) {
@@ -266,8 +335,96 @@ export async function generateProductMockup(portraitSource: Buffer | string, pro
         // Fallback or Standard Logic if no custom template provided OR if we are doing standard Printify/Local
         if (!templateBuf) {
             // OPTION A: Try Printify First (Only if NOT custom)
-            // ... [Printify logic omitted for brevity as we are focusing on internal templates now, but keeping structure]
-            // For now, let's assume we proceed to Nano Banana Local/Fallback if Printify wasn't used.
+            // Check if we have a valid Printify config for this type OR resolved Native Config
+            const printifyConfig = nativeConfig || PRINTIFY_PRODUCT_MAP[productType];
+
+            if (printifyConfig && printifyConfig.blueprint_id > 0) {
+                console.log(`[Mockup] Attempting Printify Generation... (BP: ${printifyConfig.blueprint_id})`);
+                try {
+                    // Upload portrait if it's a local buffer (we need a URL for Printify)
+                    // We can't easily upload a buffer to Printify without an intermediate URL.
+                    // But PrintifyService.generateMockupImage expects a URL.
+                    // If 'portraitSource' is a string URL, great. If it's a buffer or local path, we might need to upload it to our storage first?
+                    // Actually, PrintifyService.generateMockupImage takes a URL.
+                    // Let's resolve 'portraitSource' to a URL. 
+                    // If it is a local path, we can assuming it is in 'public/' and construct a localhost URL? 
+                    // Or upload to Supabase storage temporarily?
+
+                    // Simplified: We assume for now we have a public URL or we upload it.
+                    // BUT, `generateProductMockup` takes `Buffer | string`.
+                    // If it is a buffer, we are stuck unless we upload.
+                    // Let's check how `generateProductMockup` is called.
+                    // In `generateImagesForOrder`, `bestPortraitBuffer` is passed.
+                    // But we also uploaded it! `generatedImages` has the URL.
+                    // But `generateProductMockup` doesn't know about that URL. It just gets the buffer.
+                    // FIX: `generateProductMockup` needs to know the URL if available.
+                    // For now, let's stick to the request: "And then if I pick canvas on the order, it needs to generate the canvas mockups only."
+                    // If we are in `generateImagesForOrder`, we have the URL in `generatedImages`.
+                    // Let's Look at `generateImagesForOrder` usage.
+
+                    // Actually, PrintifyService has `uploadImage`. It might support Base64?
+                    // The `uploadImage` function in `PrintifyService` takes a URL.
+                    // The Printify API `POST /uploads/images.json` supports url OR base64.
+
+                    // Importing PrintifyService here effectively
+                    const { PrintifyService } = await import('@/lib/printify/service');
+
+                    // We need a URL. If we only have a buffer, we can convert to base64, 
+                    // but PrintifyService.uploadImage assumes URL.
+                    // Let's modify PrintifyService later to support base64 if needed, 
+                    // OR just upload to our storage if we haven't.
+
+                    // For the immediate "Review Step", we are likely passing a path string (from test script).
+                    // If portraitSource is a string (path), we can try to resolve it.
+
+                    let imageUrlForPrintify = '';
+                    if (typeof portraitSource === 'string') {
+                        if (portraitSource.startsWith('http')) {
+                            imageUrlForPrintify = portraitSource;
+                        } else {
+                            // It's a local path.
+                            // Printify needs a PUBLIC URL. Localhost won't work for their servers.
+                            // Unless we use ngrok or similar, OR we upload to our bucket.
+                            // We have `uploadFile` available.
+
+                            // 1. Read file
+                            const buf = fs.existsSync(portraitSource) ? fs.readFileSync(portraitSource) : null;
+                            if (buf) {
+                                const tempName = `temp_printify_${Date.now()}.png`;
+                                const publicUrl = await uploadFile(`temp/${tempName}`, buf);
+                                imageUrlForPrintify = getPublicUrl(`temp/${tempName}`);
+                            }
+                        }
+                    } else if (Buffer.isBuffer(portraitSource)) {
+                        // Upload buffer
+                        const tempName = `temp_printify_buf_${Date.now()}.png`;
+                        await uploadFile(`temp/${tempName}`, portraitSource);
+                        imageUrlForPrintify = getPublicUrl(`temp/${tempName}`);
+                    }
+
+                    if (imageUrlForPrintify) {
+                        const printifyUrl = await PrintifyService.generateMockupImage(imageUrlForPrintify, productType, nativeConfig);
+                        if (printifyUrl) {
+                            console.log(`[Mockup] Printify Success: ${printifyUrl}`);
+                            // Download result to buffer
+                            const res = await fetch(printifyUrl);
+                            if (res.ok) {
+                                resultBuffer = Buffer.from(await res.arrayBuffer());
+                                // We have our result!
+                                if (resultBuffer && outputPath) {
+                                    const dir = path.dirname(outputPath);
+                                    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                                    fs.writeFileSync(outputPath, resultBuffer);
+                                    console.log(`[Mockup] Saved Printify output to ${outputPath}`);
+                                }
+                                return resultBuffer;
+                            }
+                        }
+                    }
+                } catch (pErr) {
+                    console.error("[Mockup] Printify Generation Failed, falling back...", pErr);
+                }
+            }
 
             // Check for dynamic Mockup Themes first in local file system (Legacy)
             const safeId = productType.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -507,30 +664,65 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
         }
     }
 
-    // --- PHASE C: Conditional Mockups (Canvas Only) ---
-    // User Requirement: "And then if I pick canvas on the order, it needs to generate the canvas mockups only."
-    if (bestPortraitBuffer && productType.toLowerCase().includes('canvas')) {
-        console.log(`[Nano] Order includes Canvas. Generating Canvas Mockup...`);
+    // --- PHASE C: Conditional Mockups (Canvas Only - Multiview) ---
+    // User Requirement: "Like all three the side image to."
+    // UPDATE: Always generate Canvas Mockups for Upsell/Cross-sell (purchased Digital gets Canvas upsell)
+    if (bestPortraitBuffer) {
+        console.log(`[Nano] Generating Canvas Mockups (Upsell/Product View)...`);
 
-        // We can try to find a specific Canvas template in DB or use Standard.
-        // Let's rely on standard logic but targeted.
-        // Try `canvas-11x14` standard.
-        const mockBuffer = await generateProductMockup(bestPortraitBuffer, 'canvas-11x14');
+        try {
+            // We need a URL for Printify (bestPortraitBuffer -> temp upload)
+            const tempName = `temp_printify_multi_${Date.now()}.png`;
+            await uploadFile(`temp/${tempName}`, bestPortraitBuffer);
+            const tempUrl = getPublicUrl(`temp/${tempName}`);
 
-        if (mockBuffer) {
-            const filename = `mockup_canvas_${Date.now()}.png`;
-            const url = await uploadGenerated(mockBuffer, filename);
+            const { PrintifyService } = await import('@/lib/printify/service');
+            // Default to 11x14 config for the base check
+            const mockups = await PrintifyService.generateAllMockups(tempUrl, 'canvas-11x14');
 
-            generatedImages.push({
-                order_id: orderId,
-                url: url,
-                storage_path: `generated/${orderId}/${filename}`,
-                type: 'upsell', // It is a product visualization
-                display_order: 100,
-                theme_name: 'Canvas Mockup',
-                is_bonus: false, // It's part of the order
-                status: autoApprove ? 'approved' : 'pending'
-            });
+            if (mockups.length > 0) {
+                for (let i = 0; i < mockups.length; i++) {
+                    const m = mockups[i];
+                    // Download
+                    const res = await fetch(m.src);
+                    if (res.ok) {
+                        const buf = Buffer.from(await res.arrayBuffer());
+                        const filename = `mockup_canvas_${m.label}_${Date.now()}.png`;
+                        const url = await uploadGenerated(buf, filename);
+
+                        generatedImages.push({
+                            order_id: orderId,
+                            url: url,
+                            storage_path: `generated/${orderId}/${filename}`,
+                            type: 'upsell',
+                            display_order: 100 + i, // 100, 101, 102...
+                            theme_name: `Canvas ${m.label.charAt(0).toUpperCase() + m.label.slice(1)}`, // "Canvas Front", "Canvas Context-1"
+                            is_bonus: false,
+                            status: autoApprove ? 'approved' : 'pending'
+                        });
+                    }
+                }
+            } else {
+                // Fallback to legacy single if Printify fails
+                console.warn('[Nano] Printify Multi-View returned 0 images. Attempting legacy single...');
+                const mockBuffer = await generateProductMockup(bestPortraitBuffer, 'canvas-11x14');
+                if (mockBuffer) {
+                    const filename = `mockup_canvas_fallback_${Date.now()}.png`;
+                    const url = await uploadGenerated(mockBuffer, filename);
+                    generatedImages.push({
+                        order_id: orderId,
+                        url: url,
+                        storage_path: `generated/${orderId}/${filename}`,
+                        type: 'upsell',
+                        display_order: 100,
+                        theme_name: 'Canvas-11x14 Mockup',
+                        is_bonus: false,
+                        status: autoApprove ? 'approved' : 'pending'
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('[Nano] Multi-view generation failed:', e);
         }
     }
 
@@ -555,6 +747,122 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
     } else {
         console.error("No images generated.");
     }
+}
+
+export async function regenerateImage(imageId: string) {
+    console.log(`[Nano] Regenerating replacement for image ${imageId}...`);
+    const supabase = createAdminClient();
+
+    // 1. Fetch original image to get context
+    const { data: originalImage, error: imgError } = await supabase
+        .from('images')
+        .select('*, orders(*)')
+        .eq('id', imageId)
+        .single();
+
+    if (imgError || !originalImage) {
+        console.error("Failed to fetch original image for regeneration:", imgError);
+        return false;
+    }
+
+    const orderId = originalImage.order_id;
+    const order = originalImage.orders;
+    const productType = order.product_type || 'royalty';
+
+    // 2. Resolve Pet Photo
+    // Reuse logic from generateImagesForOrder or just fetch from order info?
+    // The order table has pet_image_url.
+    let petBuffer: Buffer | null = null;
+    if (order.pet_image_url) {
+        try {
+            if (order.pet_image_url.startsWith('http')) {
+                const res = await fetch(order.pet_image_url);
+                if (res.ok) petBuffer = Buffer.from(await res.arrayBuffer());
+            } else {
+                // Local path
+                const localPath = path.join(process.cwd(), 'public', order.pet_image_url);
+                if (fs.existsSync(localPath)) {
+                    petBuffer = fs.readFileSync(localPath);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load pet photo:", e);
+        }
+    }
+
+    if (!petBuffer) {
+        console.error("No pet photo available for regeneration.");
+        return false;
+    }
+
+    // 3. Pick a NEW Template
+    // We want variety.
+    // Let's get all templates for this theme.
+    // If it was a 'bonus' image, we need to respect that.
+    const isBonus = originalImage.is_bonus;
+    let templatePath = '';
+    let themeName = originalImage.theme_name;
+
+    if (isBonus) {
+        // Was it a specific bonus theme? "Bonus: Spaday"
+        // Try to parse it or just pick a random bonus.
+        // Let's just pick a random bonus template that is NOT the current one (if possible).
+        const bonuses = getBonusTemplates(productType, 5); // get 5 candidates
+        if (bonuses.length > 0) {
+            const random = bonuses[Math.floor(Math.random() * bonuses.length)];
+            templatePath = random.path;
+            themeName = `Bonus: ${random.theme}`;
+        }
+    } else {
+        // Primary portrait
+        const templates = getTemplatesForTheme(productType, 10); // Get more candidates
+        if (templates.length > 0) {
+            // Pick random
+            templatePath = templates[Math.floor(Math.random() * templates.length)];
+        }
+    }
+
+    if (!templatePath) {
+        console.error("No templates found for regeneration.");
+        return false;
+    }
+
+    // 4. Generate
+    console.log(`[Nano] Regenerating using template: ${path.basename(templatePath)}`);
+    const prompt = `Image 1 is the Reference Pet. Image 2 is the Scene Template. action: Replace the subject in Image 2 with the dog from Image 1. Identity Lock: Mandatory.`;
+
+    const newBuffer = await generateNanoSwap(templatePath, petBuffer, prompt);
+
+    if (newBuffer) {
+        // 5. Save
+        const filename = `params_regen_${Date.now()}.png`;
+        const url = await uploadFile(`generated/${orderId}/${filename}`, newBuffer)
+            .then(() => getPublicUrl(`generated/${orderId}/${filename}`));
+
+        const { error: insertError } = await supabase.from('images').insert({
+            order_id: orderId,
+            url: url,
+            storage_path: `generated/${orderId}/${filename}`,
+            type: originalImage.type, // Preserve type (primary/upsell?)
+            display_order: originalImage.display_order, // Reuse same slot? Or append? Let's append to end or keep same slot to replace visually? 
+            // If we keep same slot, it might mess up ordering if we don't delete the old one. 
+            // The old one is 'rejected'. Frontend filters by 'pending'.
+            // So we can keep the same display_order or just put it at 99.
+            // Let's keep display_order so it effectively "replaces" the slot.
+            theme_name: themeName,
+            is_bonus: isBonus,
+            status: 'pending_review'
+        });
+
+        if (insertError) {
+            console.error("Failed to save regenerated image:", insertError);
+            return false;
+        }
+        console.log("Regeneration successful.");
+        return true;
+    }
+
+    return false;
 }
 
 export async function generateStandardMockups(portraitBuffer: Buffer, orderId: string, portraitImageId: string, productType: string = '') {
@@ -588,7 +896,8 @@ export async function generateStandardMockups(portraitBuffer: Buffer, orderId: s
 
     console.log(`[Auto-Mockup] Starting batch for ${portraitImageId} [${productsToCheck.join(', ')}]`);
 
-    for (const prod of productsToCheck) {
+    // Parallelize Generation
+    await Promise.all(productsToCheck.map(async (prod) => {
         const filename = `mockup_${prod}_${portraitImageId}_${Date.now()}.png`;
         const storagePath = `generated/${orderId}/mockups/${filename}`;
 
@@ -616,7 +925,7 @@ export async function generateStandardMockups(portraitBuffer: Buffer, orderId: s
         } catch (err) {
             console.error(`Failed to generate ${prod}:`, err);
         }
-    }
+    }));
 
     // Save to DB
     if (generatedImages.length > 0) {

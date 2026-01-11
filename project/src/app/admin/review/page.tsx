@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 // import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Grid, Maximize2, CheckCheck } from 'lucide-react';
 import Image from 'next/image';
+import SwipeableCard from '../_components/SwipeableCard';
 import type { Image as ImageType, Order } from '@/lib/supabase/client';
 
 export default function ReviewPage() {
@@ -225,23 +226,29 @@ export default function ReviewPage() {
               </div>
             )}
 
-            {/* Swipe Card */}
-            <div className="relative w-full max-w-md aspect-[3/4] bg-zinc-900 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-zinc-800">
+            {/* Swipe Card Stack */}
+            <div className="relative w-full max-w-md aspect-[3/4]">
+              {/* Underlay Card (Next Image) */}
+              {pendingImages[currentImageIndex + 1] && (
+                <div className="absolute inset-0 transform scale-95 translate-y-4 opacity-50 bg-zinc-900 rounded-2xl overflow-hidden pointer-events-none">
+                  <Image src={pendingImages[currentImageIndex + 1].url} alt="Next" fill className="object-cover" />
+                </div>
+              )}
+
+              {/* Active Card */}
               {pendingImages[currentImageIndex] && (
-                <>
-                  <Image src={pendingImages[currentImageIndex].url} alt="Candidate" fill className="object-cover" />
-                  <div className="absolute bottom-0 inset-x-0 p-6 bg-gradient-to-t from-black/80 to-transparent">
-                    <h3 className="text-xl font-bold text-white">{pendingImages[currentImageIndex].theme_name}</h3>
-                    <p className="text-zinc-400 text-sm capitalize">{pendingImages[currentImageIndex].type} Generation</p>
-                  </div>
-                </>
+                <SwipeableCard
+                  key={pendingImages[currentImageIndex].id}
+                  image={pendingImages[currentImageIndex]}
+                  onSwipe={(dir) => handleDecision(dir === 'right' ? 'approve' : 'reject')}
+                />
               )}
             </div>
 
             {/* Actions */}
-            <div className="flex flex-col gap-4">
-              <button onClick={() => handleDecision('approve')} className="p-4 rounded-full bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white"><Check className="w-8 h-8" /></button>
-              <button onClick={() => handleDecision('reject')} className="p-4 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white"><X className="w-8 h-8" /></button>
+            <div className="flex flex-col gap-4 z-10">
+              <button onClick={() => handleDecision('approve')} className="p-4 rounded-full bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all hover:scale-110"><Check className="w-8 h-8" /></button>
+              <button onClick={() => handleDecision('reject')} className="p-4 rounded-full bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all hover:scale-110"><X className="w-8 h-8" /></button>
             </div>
           </div>
         )}

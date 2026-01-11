@@ -9,7 +9,8 @@ import {
     Image as ImageIcon,
     LogOut,
     Layers,
-    Share2
+    Share2,
+    Package
 } from 'lucide-react';
 
 export default function AdminSidebar() {
@@ -37,15 +38,15 @@ export default function AdminSidebar() {
             href: '/admin/themes',
             icon: Palette
         },
+
         {
-            label: 'Mockups',
-            href: '/admin/mockups',
-            icon: ImageIcon
-        },
-        {
-            label: 'Marketing',
             href: '/admin/marketing',
             icon: Share2
+        },
+        {
+            label: 'Products',
+            href: '/admin/products',
+            icon: Package
         }
     ];
 
@@ -60,9 +61,10 @@ export default function AdminSidebar() {
 
             <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                 {navItems.map((item) => {
+                    // Fix: Ensure standard admin root doesn't swallow other routes
                     const isActive = item.exact
                         ? pathname === item.href
-                        : pathname.startsWith(item.href);
+                        : (item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href));
 
                     return (
                         <Link

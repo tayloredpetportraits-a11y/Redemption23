@@ -12,15 +12,8 @@ export default function AdminLayout({
   const pathname = usePathname();
   const { replace } = useRouter();
 
-  useEffect(() => {
-    // Simple check for the cookie. For stricter check, we rely on API calls or Middleware.
-    if (!document.cookie.includes('admin-token=authenticated')) {
-      // verify we are not already on login (handled above)
-      if (pathname !== '/admin/login') {
-        replace('/admin/login');
-      }
-    }
-  }, [pathname, replace]);
+  // Client-side cookie check removed because httpOnly cookies are not accessible.
+  // Middleware handles protection.
 
   if (pathname === '/admin/login') {
     return <>{children}</>;

@@ -21,6 +21,7 @@ module.exports = {
           periwinkle: '#E7ECFF',// Light Periwinkle (Secondary/Text-on-dark)
           blue: '#D9E1FC',      // Vibrant Blue (Highlights)
           white: '#FFFFFF',     // Surface/Cards
+          purple: '#7C3AED',    // Primary Brand Color
         },
         // Keeping zinc as a fallback if needed, but brand should take precedence
         zinc: {

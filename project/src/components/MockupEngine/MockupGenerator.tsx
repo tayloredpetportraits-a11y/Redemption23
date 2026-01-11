@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 import Image from 'next/image';
 import { MOCKUP_CONFIGS, MockupConfig } from '@/lib/mockup-config';
 
@@ -18,7 +18,8 @@ export const MockupGenerator: React.FC<MockupGeneratorProps> = ({
     configOverride,
 }) => {
     const config = { ...MOCKUP_CONFIGS[productType], ...configOverride };
-    const filterId = `displacement-${productType}-${Math.random().toString(36).substr(2, 9)}`;
+    const rawId = useId();
+    const filterId = `displacement-${productType}-${rawId.replace(/:/g, '')}`;
 
     if (!config || !config.base) {
         return (

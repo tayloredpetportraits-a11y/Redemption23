@@ -114,6 +114,15 @@ export async function POST(req: Request) {
             console.error("Automation failed:", automationError);
             // Don't fail the request, just log it.
         }
+    } else if (status === 'rejected') {
+        // --- REGENERATION LOGIC ---
+        try {
+            const { regenerateImage } = await import('@/lib/ai/generation');
+            console.log(`[Queue] Triggering regeneration for filtered image ${imageId}`);
+            await regenerateImage(imageId);
+        } catch (regenError) {
+            console.error("Regeneration trigger failed:", regenError);
+        }
     }
     // ---------------------------------------------------
 

@@ -11,36 +11,40 @@ import StepOneGallery from './CustomerGallerySteps/StepOneGallery';
 import StepTwoRedemption from './CustomerGallerySteps/StepTwoRedemption';
 import StepThreeBonus from './CustomerGallerySteps/StepThreeBonus';
 import RevisionStatus from './CustomerGallerySteps/RevisionStatus';
+import RevisionRequest from './CustomerGallerySteps/RevisionRequest';
 
 // Re-export shared types/constants if needed
-export const PRINT_PRODUCTS = [
-  { id: 'digital', name: 'Digital Download', price: 0, description: 'High-res file for social media & print' },
-  { id: 'canvas-11x14', name: 'Classic Canvas', price: 39, description: '11x14" gallery-wrapped canvas' },
-  { id: 'canvas-16x20', name: 'Premium Canvas', price: 59, description: '16x20" gallery-wrapped canvas' },
-  { id: 'tumbler', name: 'Travel Tumbler', price: 34, description: '20oz insulated tumbler' },
-  { id: 'bear', name: 'Cuddle Bear', price: 34, description: 'Soft plush bear with custom t-shirt' },
-];
+import { PRINT_PRODUCTS, type Product } from '@/lib/config';
+
+// Re-export shared types/constants if needed
+export { PRINT_PRODUCTS };
+
 
 interface CustomerGalleryProps {
   order: Order;
   baseImages: ImageType[];
   bonusImages: ImageType[];
   mockupImages: ImageType[];
+  products?: Array<{ id: string; name: string; price: number; description: string }>;
 }
 
-export default function CustomerGallery({ order, baseImages, bonusImages, mockupImages }: CustomerGalleryProps) {
+export default function CustomerGallery({ order, baseImages, bonusImages, mockupImages, products = PRINT_PRODUCTS }: CustomerGalleryProps) {
   // State for Steps
   const [currentStep, setCurrentStep] = useState(1);
   const steps = ['The Reveal', 'Redemption', 'Bonus & Share'];
 
   // Global State passed down
   const [selectedImageId, setSelectedImageId] = useState<string | null>(order.selected_image_id || null);
-  const [printProduct, setPrintProduct] = useState<string>(order.selected_print_product || '');
+  const [printProduct, setPrintProduct] = useState<string>(
+    order.selected_print_product ||
+    (products.find(p => p.id === 'canvas-11x14') ? 'canvas-11x14' : products.find(p => p.id !== 'digital')?.id || 'digital')
+  );
   const [notes, setNotes] = useState<string>(order.customer_notes || '');
   const [bonusUnlocked, setBonusUnlocked] = useState(order.bonus_unlocked || false);
   const [isRevising, setIsRevising] = useState(
     order.status === 'revising' || order.revision_status === 'requested' || order.revision_status === 'in_progress'
   );
+  const [isRequestingRevision, setIsRequestingRevision] = useState(false);
 
   // Lightbox State
   const [lightboxImages, setLightboxImages] = useState<Array<{ id: string; url: string }>>([]);
@@ -100,6 +104,42 @@ export default function CustomerGallery({ order, baseImages, bonusImages, mockup
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handlePrevStep = () => {
+    if (currentStep > 1) setCurrentStep(c => c - 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleRevisionSubmit = async (imageId: string, revisionNotes: string) => {
+    try {
+      const response = await fetch(`/api/customer/${order.id}/revision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selectedImageId: imageId,
+          notes: revisionNotes,
+        }),
+      });
+
+      if (response.ok) {
+        setIsRequestingRevision(false);
+        setIsRevising(true);
+        setNotes(revisionNotes); // Update local notes to show in status
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const jsConfetti = new JSConfetti();
+        jsConfetti.addConfetti({ emojis: ['📨', '✨'] });
+      } else {
+        throw new Error('Failed to submit revision');
+      }
+    } catch (err) {
+      console.error(err);
+      // Error handling should ideally be propagated or handled in RevisionRequest via prop, 
+      // but for now we handled it inside RevisionRequest? 
+      // Actually RevisionRequest handles the catch? 
+      // Wait, RevisionRequest calls onSubmit and waits. So we should throw here if fail
+      throw err;
+    }
+  };
+
   const handleImageClick = (images: ImageType[], index: number) => {
     setLightboxImages(images.map((img) => ({ id: img.id, url: img.url })));
     setLightboxIndex(index);
@@ -139,6 +179,12 @@ export default function CustomerGallery({ order, baseImages, bonusImages, mockup
               petName={petName}
               notes={order.revision_notes || notes}
             />
+          ) : isRequestingRevision ? (
+            <RevisionRequest
+              images={baseImages}
+              onCancel={() => setIsRequestingRevision(false)}
+              onSubmit={handleRevisionSubmit}
+            />
           ) : (
             <>
               {currentStep === 1 && (
@@ -148,6 +194,12 @@ export default function CustomerGallery({ order, baseImages, bonusImages, mockup
                   onImageClick={(idx) => handleImageClick(baseImages, idx)}
                   onNext={handleNextStep}
                   orderId={order.id}
+                  selectedImageId={selectedImageId}
+                  onSelectImage={setSelectedImageId}
+                  onRequestRevision={() => {
+                    setIsRequestingRevision(true);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
                 />
               )}
               {currentStep === 2 && (
@@ -156,7 +208,7 @@ export default function CustomerGallery({ order, baseImages, bonusImages, mockup
                   petName={petName}
                   images={baseImages}
                   mockupImages={mockupImages}
-                  products={PRINT_PRODUCTS}
+                  products={products}
                   selectedImageId={selectedImageId}
                   setSelectedImageId={setSelectedImageId}
                   printProduct={printProduct}
@@ -169,9 +221,10 @@ export default function CustomerGallery({ order, baseImages, bonusImages, mockup
                     jsConfetti.addConfetti({ emojis: ['🐶', '🐱', '🦴', '🐾'] });
                   }}
                   onRequestRevision={() => {
-                    setIsRevising(true);
+                    setIsRequestingRevision(true);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
+                  onPrev={handlePrevStep}
                 />
               )}
               {currentStep === 3 && (
@@ -184,6 +237,8 @@ export default function CustomerGallery({ order, baseImages, bonusImages, mockup
                   onImageClick={(idx) => handleImageClick(bonusImages, idx)}
                   selectedImage={selectedImage}
                   printProduct={printProduct} // to show what they got
+                  mockupImages={mockupImages}
+                  products={products}
                 />
               )}
 

@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import CustomerGallery from '@/components/CustomerGallery';
 import type { Image } from '@/lib/supabase/client';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,14 +45,36 @@ export default async function Page({ params }: { params: { orderId: string } }) 
     // Mockups: type=upsell or type=mockup but NOT bonus (Admin generated or Manual mockups)
     const mockupImages = (images || []).filter((img: Image) => (img.type === 'upsell' || img.type === 'mockup') && !img.is_bonus);
 
-    console.log(`[Gallery Debug] Base: ${baseImages.length}, Bonus: ${bonusImages.length}, Mockups: ${mockupImages.length}`);
+    // 4. Fetch Printify Products (Dynamic Upsell)
+    const { data: printifyProductsRaw } = await supabase
+        .from('printify_products')
+        .select('*')
+        .eq('is_active', true);
+
+    const printifyProducts = (printifyProductsRaw || []).map((p: any) => ({
+        id: p.id,
+        name: p.title,
+        price: (p.variants?.[0]?.price || 3900) / 100, // Default to 39 if missing
+        description: 'Premium Quality Print' // Generic description as description column might be huge HTML
+    }));
+
+    // Add Digital Option always
+    const products = [
+        { id: 'digital', name: 'Digital Download', price: 0, description: 'High-res file for social media & print' },
+        ...printifyProducts
+    ];
+
+    console.log(`[Gallery Debug] Base: ${baseImages.length}, Bonus: ${bonusImages.length}, Mockups: ${mockupImages.length}, Products: ${products.length}`);
 
     return (
-        <CustomerGallery
-            order={order}
-            baseImages={baseImages}
-            bonusImages={bonusImages}
-            mockupImages={mockupImages}
-        />
+        <ErrorBoundary>
+            <CustomerGallery
+                order={order}
+                baseImages={baseImages}
+                bonusImages={bonusImages}
+                mockupImages={mockupImages}
+                products={products}
+            />
+        </ErrorBoundary>
     );
 }

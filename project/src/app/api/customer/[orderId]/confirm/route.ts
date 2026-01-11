@@ -38,7 +38,7 @@ export async function POST(
         customer_notes: notes || null,
         social_consent: socialConsent || false,
         social_handle: socialHandle || null,
-        status: 'processing_print' // Update status to indicate fulfillment started
+        status: 'ready' // Update status to allowed value
       })
       .eq('id', orderId);
 
@@ -85,10 +85,14 @@ export async function POST(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Confirm selection error:', error);
+  } catch (error: any) {
+    console.error('Confirm selection error (FATAL):', error);
+    console.error('Stack:', error?.stack);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        details: error?.message || 'Unknown error'
+      },
       { status: 500 }
     );
   }

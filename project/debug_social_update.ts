@@ -27,7 +27,7 @@ async function debugUpdate() {
         const { data, error } = await supabase
             .from('orders') // Try update again with real ID
             .update({
-                status: 'confirmed',
+                status: 'ready',
                 payment_status: 'paid',
                 selected_image_id: firstImageId, // use valid ID
                 selected_print_product: 'royalty-canvas',

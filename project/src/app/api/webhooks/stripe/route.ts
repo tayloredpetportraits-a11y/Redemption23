@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
         if (session.metadata?.productType === 'bonus_theme') {
           const orderId = session.metadata.orderId;
 
-          const { error } = await supabase
+          // 1. Update Order Status
+          const { error: orderError } = await supabase
             .from('orders')
             .update({
               bonus_unlocked: true,
@@ -57,15 +58,44 @@ export async function POST(req: NextRequest) {
             })
             .eq('id', orderId);
 
-          if (error) {
-            console.error('Failed to update order:', error);
-            return NextResponse.json(
-              { error: 'Failed to update order' },
-              { status: 500 }
-            );
+          if (orderError) {
+            console.error('Failed to update order:', orderError);
+            return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
+          }
+
+          // 2. Unlock Images
+          // Fetch locked bonus images
+          const { data: images, error: imagesError } = await supabase
+            .from('images')
+            .select('*')
+            .eq('order_id', orderId)
+            .eq('is_bonus', true);
+
+          if (!imagesError && images) {
+            for (const img of images) {
+              // Swap URL with the clean storage path if available
+              // Assuming 'storage_path' contains the clean relative path like 'generated/...'
+              // And 'url' was pointing to a watermarked version.
+              if (img.storage_path && img.storage_path.includes('secret')) {
+                // Simplistic logic: We assume the secret file is at the root or publicly serveable
+                // This matches the logic found in the previous "unlock" endpoint
+                const cleanUrl = '/' + img.storage_path;
+
+                await supabase
+                  .from('images')
+                  .update({
+                    url: cleanUrl,
+                    status: 'approved'
+                  })
+                  .eq('id', img.id);
+              }
+            }
           }
 
           console.log(`Bonus theme unlocked for order ${orderId}`);
+        } else if (session.metadata?.productType === 'physical_good') {
+          console.log(`Physical product purchased for order ${session.metadata.orderId}: ${session.metadata.productName}`);
+          // Future: Create a Fulfillment record or similar
         }
         break;
       }

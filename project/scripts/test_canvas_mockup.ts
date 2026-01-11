@@ -1,5 +1,5 @@
 
-import { generateProductMockup } from '../src/lib/ai/generation';
+import { generateProductMockup } from '../src/lib/ai/generation.ts';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -25,14 +25,15 @@ async function testMockup() {
     console.log(`Portrait: ${portraitPath}`);
     console.log(`Template: ${templatePath}`);
 
-    const result = await generateProductMockup(portraitPath, 'custom', outputPath, templatePath);
+    // Generate 11x14
+    console.log('Generating 11x14...');
+    const result11 = await generateProductMockup(portraitPath, 'canvas-11x14', path.join(process.cwd(), 'public', 'generated', 'proof_11x14.png'));
+    if (result11) console.log('SUCCESS! 11x14 View at: http://localhost:3000/generated/proof_11x14.png');
 
-    if (result) {
-        console.log('SUCCESS! Mockup generated.');
-        console.log(`View at: http://localhost:3000/generated/test_canvas_mockup_real.png`);
-    } else {
-        console.error('FAILED to generate mockup.');
-    }
+    // Generate 16x20
+    console.log('Generating 16x20...');
+    const result16 = await generateProductMockup(portraitPath, 'canvas-16x20', path.join(process.cwd(), 'public', 'generated', 'proof_16x20.png'));
+    if (result16) console.log('SUCCESS! 16x20 View at: http://localhost:3000/generated/proof_16x20.png');
 }
 
 testMockup();

@@ -3,10 +3,10 @@ import { createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(
     request: NextRequest,
-    context: { params: Promise<{ orderId: string }> }
+    context: { params: { orderId: string } }
 ) {
     try {
-        const { orderId } = await context.params;
+        const { orderId } = context.params;
         const { selectedImageId, notes } = await request.json();
 
         if (!selectedImageId) {
