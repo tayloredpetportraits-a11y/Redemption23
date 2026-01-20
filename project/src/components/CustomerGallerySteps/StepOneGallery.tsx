@@ -17,8 +17,23 @@ interface StepOneGalleryProps {
 }
 
 import { createCheckoutSession } from '@/app/actions/stripe';
+import TriggerCelebration from '../TriggerCelebration';
+import DownloadActionBar from '../DownloadActionBar';
 
-// ... existing imports
+const container = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.1
+        }
+    }
+};
+
+const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+};
 
 export default function StepOneGallery({ images: initialImages, upsellImages, petName, onImageClick, onNext, orderId }: StepOneGalleryProps) {
     const [images, setImages] = useState<ImageType[]>(initialImages);
@@ -70,7 +85,8 @@ export default function StepOneGallery({ images: initialImages, upsellImages, pe
     };
 
     return (
-        <div className="space-y-12 px-4 sm:px-0">
+        <div className="space-y-12 px-4 sm:px-0 relative">
+            <TriggerCelebration />
             {/* ... Existing header ... */}
             <div className="space-y-8">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
@@ -87,7 +103,12 @@ export default function StepOneGallery({ images: initialImages, upsellImages, pe
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                <motion.div
+                    variants={container}
+                    initial="hidden"
+                    animate="show"
+                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"
+                >
                     <AnimatePresence mode='popLayout'>
                         {images.map((image, index) => (
                             <ImageCard
@@ -98,10 +119,11 @@ export default function StepOneGallery({ images: initialImages, upsellImages, pe
                                 onImageClick={onImageClick}
                                 isProcessing={processingIds.has(image.id)}
                                 handleDownload={handleDownload}
+                                variants={item}
                             />
                         ))}
                     </AnimatePresence>
-                </div>
+                </motion.div>
             </div>
 
             {/* BONUS THEME TEASE (LOCKED) */}
@@ -178,12 +200,14 @@ export default function StepOneGallery({ images: initialImages, upsellImages, pe
                     <ArrowRight className="w-6 h-6" />
                 </button>
             </div>
+            {/* Sticky Action Bar */}
+            <DownloadActionBar images={images.filter(img => img.status !== 'rejected')} petName={petName} />
         </div>
     );
 }
 
-function ImageCard({ image, petName, index, onImageClick, isProcessing, handleDownload }:
-    { image: ImageType, petName: string, index: number, onImageClick: (i: number) => void, isProcessing: boolean, handleDownload: (url: string, name: string) => void }) {
+function ImageCard({ image, petName, index, onImageClick, isProcessing, handleDownload, variants }:
+    { image: ImageType, petName: string, index: number, onImageClick: (i: number) => void, isProcessing: boolean, handleDownload: (url: string, name: string) => void, variants?: any }) {
 
     const controls = useAnimation();
     const [dragStart, setDragStart] = useState({ x: 0 });
@@ -214,8 +238,7 @@ function ImageCard({ image, petName, index, onImageClick, isProcessing, handleDo
         <motion.div
             layout
             key={image.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={controls}
+            variants={variants}
             whileHover={{ scale: 1.02 }}
             className="group relative"
         >

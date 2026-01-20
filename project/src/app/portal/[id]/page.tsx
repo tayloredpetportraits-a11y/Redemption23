@@ -51,13 +51,28 @@ export default async function Page({ params }: { params: { id: string } }) {
     const mockupImages = (images || []).filter((img: Image) => img.type === 'mockup');
 
     return (
-        <CustomerGallery
-            order={order}
-            baseImages={baseImages}
-            bonusImages={bonusImages}
-            mockupImages={mockupImages}
-            upsellImages={upsellImages}
-            productTemplates={productTemplates || []} // Pass down new templates
-        />
+        <div className="min-h-screen bg-white">
+            {/* Branding Header */}
+            <header className="w-full py-8 flex flex-col items-center justify-center border-b border-zinc-100 bg-white">
+                <div className="relative w-24 h-24 mb-4 rounded-full overflow-hidden shadow-lg border-4 border-white ring-1 ring-zinc-100">
+                    <img
+                        src="/logo.gif"
+                        alt="Taylored Pet Portraits"
+                        className="w-full h-full object-cover"
+                    />
+                </div>
+                <h1 className="text-3xl font-bold text-zinc-900 font-playfair tracking-tight">Taylored Pet Portraits</h1>
+                <p className="text-zinc-500 font-medium tracking-wide text-sm mt-1 uppercase text-opacity-80">Your Pet, Reimagined.</p>
+            </header>
+
+            <CustomerGallery
+                order={order}
+                baseImages={baseImages}
+                bonusImages={bonusImages}
+                mockupImages={mockupImages}
+                upsellImages={upsellImages}
+                productTemplates={productTemplates || []} // Pass down new templates
+            />
+        </div>
     );
 }

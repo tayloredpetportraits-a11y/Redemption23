@@ -27,6 +27,7 @@ export default function ProductManagerPage() {
         const { data, error } = await supabase
             .from('product_templates')
             .select('*')
+            .eq('is_active', true)
             .order('created_at', { ascending: false });
 
         if (!error && data) {
@@ -37,11 +38,11 @@ export default function ProductManagerPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this template?')) return;
+        if (!confirm('Are you sure you want to archive this template?')) return;
 
         const { error } = await supabase
             .from('product_templates')
-            .delete()
+            .update({ is_active: false })
             .eq('id', id);
 
         if (error) {
@@ -131,7 +132,7 @@ export default function ProductManagerPage() {
                                 placeholder="e.g. Classic Mug"
                                 value={newName}
                                 onChange={e => setNewName(e.target.value)}
-                                className="w-full px-4 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-brand-blue/50 outline-none"
+                                className="w-full px-4 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-brand-blue/50 outline-none text-gray-900"
                                 required
                             />
                         </div>
@@ -143,7 +144,7 @@ export default function ProductManagerPage() {
                                 placeholder="https://..."
                                 value={newLink}
                                 onChange={e => setNewLink(e.target.value)}
-                                className="w-full px-4 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-brand-blue/50 outline-none"
+                                className="w-full px-4 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-brand-blue/50 outline-none text-gray-900"
                                 required
                             />
                         </div>
@@ -153,7 +154,7 @@ export default function ProductManagerPage() {
                             <select
                                 value={newAspectRatio}
                                 onChange={e => setNewAspectRatio(e.target.value as any)}
-                                className="w-full px-4 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-brand-blue/50 outline-none"
+                                className="w-full px-4 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-brand-blue/50 outline-none text-gray-900"
                             >
                                 <option value="square">Square (1:1)</option>
                                 <option value="portrait">Portrait (3:4)</option>
@@ -183,7 +184,7 @@ export default function ProductManagerPage() {
                         <button
                             type="submit"
                             disabled={uploading}
-                            className="w-full btn-primary py-3 rounded-xl flex items-center justify-center gap-2 mt-4"
+                            className="w-full bg-brand-navy hover:bg-brand-navy/90 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 mt-4 shadow-lg shadow-brand-navy/20 transition-all"
                         >
                             {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Product"}
                         </button>
@@ -192,8 +193,8 @@ export default function ProductManagerPage() {
 
                 {/* RIGHT: Product List */}
                 <div className="lg:col-span-2 space-y-4">
-                    <h2 className="text-xl font-bold text-brand-navy mb-4 flex items-center gap-2">
-                        <ImageIcon className="w-5 h-5" />
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <ImageIcon className="w-5 h-5 text-gray-600" />
                         Active Products ({products.length})
                     </h2>
 
@@ -202,15 +203,15 @@ export default function ProductManagerPage() {
                             <Loader2 className="w-8 h-8 animate-spin text-brand-navy" />
                         </div>
                     ) : products.length === 0 ? (
-                        <div className="text-center py-12 bg-white rounded-2xl border border-zinc-100 text-zinc-400">
+                        <div className="text-center py-12 bg-white rounded-2xl border border-gray-200 text-gray-400">
                             No products found. Add one on the left!
                         </div>
                     ) : (
                         <div className="grid sm:grid-cols-2 gap-4">
                             {products.map(product => (
-                                <div key={product.id} className="group bg-white rounded-xl border border-zinc-200 overflow-hidden hover:shadow-lg transition-all flex flex-col">
+                                <div key={product.id} className="group bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
                                     {/* Preview Header */}
-                                    <div className={`relative w-full bg-zinc-100 ${product.aspect_ratio === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'}`}>
+                                    <div className={`relative w-full bg-gray-50 ${product.aspect_ratio === 'portrait' ? 'aspect-[3/4]' : 'aspect-square'}`}>
                                         {/* Checkerboard background for transparency checks */}
                                         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
 
@@ -225,20 +226,20 @@ export default function ProductManagerPage() {
 
                                         <button
                                             onClick={() => handleDelete(product.id)}
-                                            className="absolute top-2 right-2 p-2 bg-white/90 text-rose-500 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-50 transition-all shadow-sm"
+                                            className="absolute top-2 right-2 p-2 bg-white/90 text-rose-500 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-rose-50 transition-all shadow-sm border border-gray-100"
                                             title="Delete Template"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
 
-                                    <div className="p-4 border-t border-zinc-100">
-                                        <h3 className="font-bold text-brand-navy">{product.name}</h3>
-                                        <a href={product.purchase_link} target="_blank" className="text-xs text-brand-blue truncate block hover:underline">
+                                    <div className="p-4 border-t border-gray-100">
+                                        <h3 className="font-bold text-gray-900 text-lg">{product.name}</h3>
+                                        <a href={product.purchase_link} target="_blank" className="text-xs text-blue-600 truncate block hover:underline mt-1">
                                             {product.purchase_link}
                                         </a>
-                                        <div className="mt-2 flex gap-2">
-                                            <span className="text-[10px] uppercase font-bold px-2 py-1 bg-zinc-100 text-zinc-500 rounded-md">
+                                        <div className="mt-3 flex gap-2">
+                                            <span className="text-[10px] uppercase font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded-md border border-gray-200">
                                                 {product.aspect_ratio}
                                             </span>
                                         </div>

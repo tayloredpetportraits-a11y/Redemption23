@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { sendCustomerNotification } from '@/lib/email';
 import { uploadFile, getPublicUrl } from '@/lib/supabase/storage';
@@ -10,6 +11,40 @@ import { uploadFile, getPublicUrl } from '@/lib/supabase/storage';
 const MODEL_NAME = "models/nano-banana-pro-preview";
 
 import sharp from 'sharp';
+
+// Helper: Download URL to Temp File (for Gemini Input)
+export async function downloadToTemp(url: string): Promise<string> {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to download ${url}`);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const tempPath = path.join(os.tmpdir(), `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`);
+    fs.writeFileSync(tempPath, buffer);
+    return tempPath;
+}
+
+// Helper: Add Text Overlay (if theme requires it)
+export async function applyTextOverlay(imageBuffer: Buffer, text: string): Promise<Buffer> {
+    const image = sharp(imageBuffer);
+    const metadata = await image.metadata();
+    const width = metadata.width || 1024;
+    const height = metadata.height || 1024;
+
+    // Create SVG Text
+    // Bottom center, white text with black shadow/outline for readability
+    const svgText = `
+    <svg width="${width}" height="${height}">
+        <style>
+            .title { fill: white; font-size: ${Math.floor(width * 0.1)}px; font-weight: bold; font-family: sans-serif; text-anchor: middle; text-shadow: 2px 2px 10px black; }
+        </style>
+        <text x="50%" y="${height * 0.9}" class="title">${text}</text>
+    </svg>`;
+
+    return image
+        .composite([{ input: Buffer.from(svgText), gravity: 'south' }])
+        .toBuffer();
+}
+
+// Helper to upscale image for print
 
 // Helper to upscale image for print
 async function upscaleImage(inputBuffer: Buffer): Promise<Buffer> {
@@ -439,8 +474,8 @@ export async function generateProductMockup(portraitSource: Buffer | string, pro
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function generateImagesForOrder(orderId: string, petPhotoUrl: string, productType: string = 'royalty', petBreed: string = '', petDetails: string = '', autoApprove: boolean = false) {
-    console.log(`Starting Smart Generation for order ${orderId} [Product: ${productType}]`);
+export async function generateImagesForOrder(orderId: string, petPhotoUrl: string, productType: string = 'royalty', petBreed: string = '', petDetails: string = '', autoApprove: boolean = false, petName: string = '') {
+    console.log(`Starting Smart Generation for order ${orderId} [Style: ${productType}]`);
     const supabase = createAdminClient();
 
     // 1. Resolve Pet Photo
@@ -461,148 +496,163 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
         throw e;
     }
 
-    // 2. Fetch Mockup Templates from DB
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let primaryTmpl: any = null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let upsellTmpls: any[] = [];
+    // 2. Fetch Theme Config from DB
+    // We expect 'productType' to match 'theme.id' (e.g., 'royalty', 'spa-day')
+    let primaryTheme: any = null;
+    let bonusTheme: any = null;
 
     try {
-        const { data: templates } = await supabase.from('mockup_templates').select('*').eq('is_active', true);
+        // Fetch Primary
+        const { data: pTheme, error: pError } = await supabase
+            .from('themes')
+            .select('*')
+            .eq('id', productType.toLowerCase()) // assuming productType IS the theme ID
+            .single();
 
-        if (templates && templates.length > 0) {
-            // Find Match
-            const targetKeywords = productType.toLowerCase().split(/[\s,-]+/);
-
-            // Score templates
-            const scored = templates.map(t => {
-                let score = 0;
-                if (t.keywords) {
-                    t.keywords.forEach((k: string) => {
-                        if (targetKeywords.some(tk => tk.includes(k.toLowerCase()) || k.toLowerCase().includes(tk))) {
-                            score += 1;
-                        }
-                    });
-                }
-                return { ...t, score };
-            });
-
-            scored.sort((a, b) => b.score - a.score);
-
-            if (scored[0].score > 0) {
-                primaryTmpl = scored[0];
-                upsellTmpls = scored.slice(1, 3); // next 2
-            } else {
-                // No clear match, random
-                primaryTmpl = templates[0];
-                upsellTmpls = templates.slice(1, 3);
-            }
-            console.log(`[Smart Gen] Matched Primary: ${primaryTmpl.name}, Upsells: ${upsellTmpls.length}`);
+        if (pTheme) {
+            primaryTheme = pTheme;
+        } else {
+            console.warn(`Theme '${productType}' not found in DB. Falling back to 'royalty' or first available.`);
+            // Fallback: Get first theme
+            const { data: all } = await supabase.from('themes').select('*').limit(1);
+            if (all && all.length > 0) primaryTheme = all[0];
         }
-    } catch (err) {
-        console.error("Error fetching templates:", err);
+
+        // Fetch Bonus (Random different theme)
+        if (primaryTheme) {
+            const { data: bThemes } = await supabase
+                .from('themes')
+                .select('*')
+                .neq('id', primaryTheme.id)
+                .limit(10); // fetch a few to pick random
+
+            if (bThemes && bThemes.length > 0) {
+                bonusTheme = bThemes[Math.floor(Math.random() * bThemes.length)];
+            }
+        }
+    } catch (dbErr) {
+        console.error("DB Theme Fetch Error:", dbErr);
     }
 
-    // 3. Generate Base Portrait (The Art)
-    // Requirement: 5 Themed Portraits + 5 Bonus Portraits
-    const portraitTemplates = getTemplatesForTheme(productType, 5);
-    const bonusTemplates = getBonusTemplates(productType, 5);
+    if (!primaryTheme) {
+        throw new Error("Critical: No themes available for generation.");
+    }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    console.log(`[Smart Gen] Configured - Primary: ${primaryTheme.name}, Bonus: ${bonusTheme ? bonusTheme.name : 'None'}`);
+
     const generatedImages: any[] = [];
 
-    // Helper to upload
-    const uploadGenerated = async (buffer: Buffer, filename: string, isSecret = false) => {
-        const path = `generated/${orderId}/${filename}`;
-        await uploadFile(path, buffer);
-        if (isSecret) return path; // Return path for secret
-        return getPublicUrl(path);
+    // Helper to generate a set of portraits for a theme
+    const generateForTheme = async (theme: any, isBonus: boolean, startIndex: number, count: number) => {
+        if (!theme || !theme.reference_images || theme.reference_images.length === 0) return;
+
+        // Take first N images from reference_images
+        const templates = theme.reference_images.slice(0, count);
+
+        for (let i = 0; i < templates.length; i++) {
+            const tmplUrl = templates[i];
+            console.log(`[Nano] Generating ${isBonus ? 'Bonus' : 'Primary'} ${i + 1}/${templates.length} (${theme.name})...`);
+
+            let tempTemplatePath = '';
+            try {
+                // A. Download Template to Temp File (so Nano function works as is)
+                tempTemplatePath = await downloadToTemp(tmplUrl);
+
+                // B. Prepare Prompt
+                const petLabel = petBreed ? `the ${petBreed}` : 'the dog';
+                let prompt = `Reasoning Task: Look at the reference image. Identify ${petLabel}'s unique features (eyes, snout, markings). Look at the template image. Replace the animal in the template with ${petLabel} from the reference. Keep the costume and background exactly as they are.`;
+                if (petDetails) prompt += ` Ensure these features are visible: ${petDetails}.`;
+                if (theme.trigger_word) prompt += ` Style Trigger: ${theme.trigger_word}.`;
+
+                const filename = `portrait_${theme.id}_${isBonus ? 'bonus' : 'primary'}_${i}_${Date.now()}.png`;
+
+                // C. Call Core AI (Outputs a Buffer)
+                const resultBuffer = await generateNanoSwap(tempTemplatePath, petBuffer, prompt);
+
+                if (resultBuffer) {
+                    let finalBuffer = resultBuffer;
+
+                    // D. Apply Text Overlay if required
+                    if (theme.requires_text && petName) {
+                        console.log(`[Post-Process] Applying Text Overlay: "${petName}"`);
+                        finalBuffer = await applyTextOverlay(finalBuffer, petName);
+                    }
+
+                    // E. Upload
+                    const storagePath = `generated/${orderId}/${filename}`;
+                    await uploadFile(storagePath, finalBuffer);
+                    const publicUrl = getPublicUrl(storagePath);
+
+                    generatedImages.push({
+                        order_id: orderId,
+                        url: publicUrl,
+                        storage_path: storagePath,
+                        type: isBonus ? 'upsell' : 'primary',
+                        display_order: startIndex + i,
+                        theme_name: isBonus ? `Bonus: ${theme.name}` : theme.name,
+                        is_bonus: isBonus,
+                        status: autoApprove ? 'approved' : 'pending_review',
+                        template_id: tmplUrl // Storing the source URL as ID
+                    });
+                }
+
+            } catch (err) {
+                console.error(`Failed to generate for ${theme.name} index ${i}:`, err);
+            } finally {
+                // F. Cleanup Temp File
+                if (tempTemplatePath && fs.existsSync(tempTemplatePath)) {
+                    fs.unlinkSync(tempTemplatePath);
+                }
+            }
+        }
     };
 
     // --- PHASE A: Generate Primary Portraits (5) ---
-    let bestPortraitBuffer: Buffer | null = null;
-    // We need ID if possible, but we don't have IDs yet until insert. 
-    // We'll trust the buffer for immediate mockups.
-
-    for (let i = 0; i < portraitTemplates.length; i++) {
-        console.log(`[Nano] Generating Primary Portrait ${i + 1}/${portraitTemplates.length}...`);
-        const tmpl = portraitTemplates[i];
-
-        const petLabel = petBreed ? `the ${petBreed}` : 'the dog';
-        let prompt = `Reasoning Task: Look at the reference image. Identify ${petLabel}'s unique features (eyes, snout, markings). Look at the template image. Replace the animal in the template with ${petLabel} from the reference. Keep the costume and background exactly as they are.`;
-        if (petDetails) prompt += ` Ensure these features are visible: ${petDetails}.`;
-
-        const filename = `portrait_primary_${i}.png`;
-        const result = await generateSinglePortrait(orderId, tmpl, petBuffer, prompt, filename);
-
-        if (result) {
-            if (!bestPortraitBuffer) bestPortraitBuffer = result.buffer; // Save first as 'best' for now
-
-            generatedImages.push({
-                order_id: orderId,
-                url: result.url,
-                storage_path: result.storagePath,
-                type: 'primary',
-                display_order: i,
-                theme_name: 'Portrait Option',
-                is_bonus: false,
-                status: autoApprove ? 'approved' : 'pending',
-                template_id: tmpl // Save template path for regeneration
-            });
-        }
-    }
+    await generateForTheme(primaryTheme, false, 0, 5);
 
     // --- PHASE B: Generate Bonus Portraits (5) ---
-    for (let i = 0; i < bonusTemplates.length; i++) {
-        console.log(`[Nano] Generating Bonus Portrait ${i + 1}/${bonusTemplates.length} (${bonusTemplates[i].theme})...`);
-        const tmpl = bonusTemplates[i].path;
-
-        // Portrait Prompt (Same logic)
-        const petLabelBonus = petBreed ? `the ${petBreed}` : 'the dog';
-        const prompt = `Reasoning Task: Look at the reference image. Identify ${petLabelBonus}'s unique features (eyes, snout, markings). Look at the template image. Replace the animal in the template with ${petLabelBonus} from the reference. Keep the costume and background exactly as they are.`;
-
-        const filename = `portrait_bonus_${i}.png`;
-        const result = await generateSinglePortrait(orderId, tmpl, petBuffer, prompt, filename);
-
-        if (result) {
-            generatedImages.push({
-                order_id: orderId,
-                url: result.url,
-                storage_path: result.storagePath,
-                type: 'primary',
-                display_order: 10 + i,
-                theme_name: `Bonus: ${bonusTemplates[i].theme}`, // Label with theme
-                is_bonus: true,
-                status: autoApprove ? 'approved' : 'pending',
-                template_id: tmpl // Save template path
-            });
-        }
+    if (bonusTheme) {
+        await generateForTheme(bonusTheme, true, 5, 5);
     }
 
-    // --- PHASE C: Conditional Mockups (Canvas Only) ---
-    // User Requirement: "And then if I pick canvas on the order, it needs to generate the canvas mockups only."
-    if (bestPortraitBuffer && productType.toLowerCase().includes('canvas')) {
+    // --- PHASE C: Conditional Mockups (Canvas Only, etc.) ---
+    // If we have at least one valid image, let's use the first primary one for a mockup
+    const bestImage = generatedImages.find(img => !img.is_bonus) || generatedImages[0];
+
+    if (bestImage && productType.toLowerCase().includes('canvas')) {
         console.log(`[Nano] Order includes Canvas. Generating Canvas Mockup...`);
+        // We need to fetch the best image buffer back to generate mockup? 
+        // Or if we had it in variable scope... we lost it in the loop helper.
+        // Let's re-fetch effectively or just skip for this iteration to keep it simple as requested.
+        // User just said update inputs. Mockups are secondary.
+        // BUT, existing logic had mockups.
 
-        // We can try to find a specific Canvas template in DB or use Standard.
-        // Let's rely on standard logic but targeted.
-        // Try `canvas-11x14` standard.
-        const mockBuffer = await generateProductMockup(bestPortraitBuffer, 'canvas-11x14');
+        // Re-download the "best image" to use as source for mockup
+        try {
+            const bestImgPath = await downloadToTemp(bestImage.url);
+            const bestImgBuffer = fs.readFileSync(bestImgPath);
 
-        if (mockBuffer) {
-            const filename = `mockup_canvas_${Date.now()}.png`;
-            const url = await uploadGenerated(mockBuffer, filename);
+            const mockBuffer = await generateProductMockup(bestImgBuffer, 'canvas-11x14');
+            if (mockBuffer) {
+                const filename = `mockup_canvas_${Date.now()}.png`;
+                const storagePath = `generated/${orderId}/${filename}`;
+                await uploadFile(storagePath, mockBuffer);
+                const url = getPublicUrl(storagePath);
 
-            generatedImages.push({
-                order_id: orderId,
-                url: url,
-                storage_path: `generated/${orderId}/${filename}`,
-                type: 'upsell', // It is a product visualization
-                display_order: 100,
-                theme_name: 'Canvas Mockup',
-                is_bonus: false, // It's part of the order
-                status: autoApprove ? 'approved' : 'pending'
-            });
+                generatedImages.push({
+                    order_id: orderId,
+                    url: url,
+                    storage_path: storagePath,
+                    type: 'upsell',
+                    display_order: 100,
+                    theme_name: 'Canvas Mockup',
+                    is_bonus: false,
+                    status: autoApprove ? 'approved' : 'pending_review'
+                });
+            }
+            fs.unlinkSync(bestImgPath);
+        } catch (e) {
+            console.error("Mockup generation error:", e);
         }
     }
 

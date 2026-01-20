@@ -42,25 +42,16 @@ export async function POST(req: Request) {
 
         console.log(`[Shopify Webhook] Received topic: ${topic}`);
 
-        // We only care about orders/create (or orders/paid, depending on setup)
-        // Ignoring specific topic check for now to allow easier testing, 
-        // but typically you'd check: if (topic !== 'orders/create') ...
-
         // 2. Extract Data
         const customerEmail = payload.email || payload.customer?.email;
         const customerName = payload.customer ? `${payload.customer.first_name} ${payload.customer.last_name}` : 'Guest';
 
         // Loop through line items to find the "Portrait" product
-        // We assume the customized item has properties
         let lineItemFound = false;
 
         for (const item of payload.line_items) {
             const properties = item.properties || [];
 
-            // Heuristic: Check for file upload property (Easify usually adds a URL)
-            // Or specific keys like "Pet Photo", "Bilder-Upload", etc.
-
-            // We'll normalize keys to lowercase for checking
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const propsMap: Record<string, any> = {};
             properties.forEach((p: { name: string, value: string }) => {
@@ -68,13 +59,12 @@ export async function POST(req: Request) {
             });
 
             // Look for common file upload keys or just "Pet Photo"
-            // Flexible Mapping
             const photoUrl = propsMap['pet photo'] || propsMap['upload'] || propsMap['photo'] || null;
             const breed = propsMap['breed'] || propsMap['pet breed'] || '';
             const petName = propsMap['name'] || propsMap['pet name'] || propsMap['dog name'] || '';
             const special = propsMap['special'] || propsMap['what makes them special'] || propsMap['details'] || propsMap['notes'] || '';
 
-            // Collect all other properties to ensure we don't miss context
+            // Collect all into fullDetails
             const explicitKeys = ['pet photo', 'upload', 'photo', 'breed', 'pet breed', 'name', 'pet name', 'dog name', 'special', 'what makes them special', 'details', 'notes'];
             const extraProps = Object.entries(propsMap)
                 .filter(([k]) => !explicitKeys.includes(k))
@@ -91,15 +81,6 @@ export async function POST(req: Request) {
             if (photoUrl) {
                 lineItemFound = true;
                 console.log(`[Shopify] Found printable item: ${item.name}`);
-
-                // 3. Process the Order
-                // We need to download the image because our generation script expects a local path or a specific /uploads URL
-                // Actually, `generateImagesForOrder` takes a `petPhotoUrl`. 
-                // If it starts with `/`, it treats as local. If http, maybe we need to support that.
-                // Checking generation.ts:
-                // `const cleanUrl = petPhotoUrl.startsWith('/') ? petPhotoUrl.slice(1) : petPhotoUrl;`
-                // `const petPhotoPath = path.join(process.cwd(), 'public', cleanUrl);`
-                // It assumes local file! So we MUST download it.
 
                 const safeName = `shopify-${payload.id}-${Date.now()}.jpg`;
                 const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'pets');
@@ -139,7 +120,7 @@ export async function POST(req: Request) {
                         pet_image_url: storageUrl,
                         status: 'pending',
                         pet_breed: breed || null,
-
+                        pet_name: petName || null, // FIXED: Now saving pet name
                         pet_details: fullDetails
                     })
                     .select()
@@ -147,7 +128,6 @@ export async function POST(req: Request) {
 
                 if (orderError) {
                     console.error("Failed to create order in DB:", orderError);
-                    // Continue to next item? Or fail?
                     continue;
                 }
 
@@ -165,7 +145,6 @@ export async function POST(req: Request) {
 
         if (!lineItemFound) {
             console.log("[Shopify] No item with 'Pet Photo' found in this order.");
-            // Return 200 anyway to verify webhook reception
         }
 
         return NextResponse.json({ success: true });

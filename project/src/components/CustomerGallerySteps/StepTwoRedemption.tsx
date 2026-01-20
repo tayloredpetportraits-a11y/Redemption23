@@ -15,6 +15,8 @@ interface Product {
     name: string;
     price: number;
     description: string;
+    purchase_link?: string;
+    is_digital?: boolean;
 }
 
 interface StepTwoRedemptionProps {
@@ -112,20 +114,27 @@ export default function StepTwoRedemption({
             setSelectedImageId(effectiveImageId);
         }
 
-        // Intercept Digital for Upsell - Only show ONCE
-        if (printProduct === 'digital' && !showUpsell && !hasSeenUpsell) {
-            setShowUpsell(true);
-            setHasSeenUpsell(true);
+        // VALIDATION: Must have image selected
+        if (!effectiveImageId) {
+            setError('Please select a reference portrait first.');
             return;
         }
 
-        // For Physical, require selection
-        if (printProduct !== 'digital' && !effectiveImageId) {
-            setError('Please select a portrait first.');
-            return;
-        }
+        // LOGIC BRANCH: Digital vs Paid
+        // Safe access to products
+        const safeProducts = products || [];
+        const selectedProd = safeProducts.find(p => p.id === printProduct);
 
-        submitOrder(effectiveImageId || null);
+        if (selectedProd?.is_digital) {
+            // Free/Digital Flow -> Submit Order
+            submitOrder(effectiveImageId || null);
+        } else if (selectedProd?.purchase_link) {
+            // Paid Flow -> Redirect to External Link (Stripe/Shop)
+            window.location.href = selectedProd.purchase_link;
+        } else {
+            // Fallback
+            setError('This product is currently unavailable.');
+        }
     };
 
     const submitOrder = async (finalImageId: string | null = selectedImageId) => {
@@ -341,7 +350,12 @@ export default function StepTwoRedemption({
                                 <section className="space-y-3">
                                     <h3 className="text-sm font-bold text-brand-navy uppercase tracking-wide">2. Choose Size</h3>
                                     <div className="grid grid-cols-2 gap-3">
-                                        {products.map((product) => (
+                                        {(products || []).length === 0 && (
+                                            <div className="col-span-2 text-center text-zinc-500 py-4 italic">
+                                                No physical upgrades available for this order.
+                                            </div>
+                                        )}
+                                        {(products || []).map((product) => (
                                             <div
                                                 key={product.id}
                                                 onClick={() => setPrintProduct(product.id)}
@@ -352,7 +366,9 @@ export default function StepTwoRedemption({
                                             >
                                                 <div className="font-bold text-brand-navy text-lg">{product.name}</div>
                                                 <div className="text-sm text-zinc-500 mt-1">{product.description}</div>
-                                                <div className="text-brand-navy font-bold mt-2 text-base">${product.price}</div>
+                                                <div className="text-brand-navy font-bold mt-2 text-base">
+                                                    {product.price > 0 ? `$${product.price}+` : 'Free'}
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -435,7 +451,7 @@ export default function StepTwoRedemption({
                                         Processing...
                                     </span>
                                 ) : (
-                                    printProduct === 'digital' ? "Proceed to Delivery" : "Confirm Order & Print"
+                                    ((products || []).find(p => p.id === printProduct)?.is_digital) ? "Claim Digital Download" : "Proceed to Purchase"
                                 )}
                             </button>
 

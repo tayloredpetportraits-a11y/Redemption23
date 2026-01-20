@@ -120,10 +120,10 @@ export default function CreateOrderPage() {
 
         setSuccessData({ url: `${window.location.origin}/admin/review` });
 
-        // Auto Redirect after 1.5s
-        setTimeout(() => {
-          router.push('/admin/review');
-        }, 1500);
+        // Auto Redirect Removed
+        // setTimeout(() => {
+        //   router.push('/admin/review');
+        // }, 1500);
 
       } else {
         // Call Manual API
@@ -352,7 +352,7 @@ export default function CreateOrderPage() {
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
               <h2 className="text-xl font-bold text-green-400 mb-2">Order Created!</h2>
               {activeTab === 'generate' ? (
-                <p className="text-zinc-400 mb-4">Images are generating now. Redirecting...</p>
+                <p className="text-zinc-400 mb-4">Images are generating. You can view them now or create another order.</p>
               ) : (
                 <div className="flex items-center gap-2 bg-black/40 p-2 rounded-lg mt-4">
                   <input readOnly value={successData.url} className="bg-transparent flex-1 text-xs text-zinc-400 outline-none font-mono" />

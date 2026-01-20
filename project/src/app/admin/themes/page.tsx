@@ -2,457 +2,345 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { Play, Upload, Loader2, FolderPlus, Trash2, X, Grid } from 'lucide-react';
+import { Plus, Trash2, Power, Search, Upload, X, ImageIcon, Check } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
-import { motion, AnimatePresence } from 'framer-motion';
+import { createClient } from '@/lib/supabase/client';
+import { getThemes, saveThemeToDB, deleteTheme, toggleThemeStatus, type Theme } from '@/app/actions/themes';
+import { clsx } from 'clsx';
 
-interface Theme {
-    id: string;
-    name: string;
-    imageCount: number;
-    previewImage: string | null;
-}
-
-interface ThemeImage {
-    name: string;
-    url: string;
-}
-
-function ManageThemeModal({ theme, type, onClose, onImageDeleted }: { theme: Theme, type: 'portrait' | 'mockup', onClose: () => void, onImageDeleted: () => void }) {
-    const [images, setImages] = useState<ThemeImage[]>([]);
+export default function ThemesPage() {
+    const [themes, setThemes] = useState<Theme[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    const loadImages = useCallback(() => {
-        setLoading(true);
-        fetch(`/api/admin/themes/details?id=${theme.id}&type=${type}`)
-            .then(res => res.json())
-            .then(data => setImages(data.images || []))
-            .catch(console.error)
-            .finally(() => setLoading(false));
-    }, [theme.id, type]);
+    // Form States
+    const [newName, setNewName] = useState('');
+    const [newId, setNewId] = useState('');
+    const [triggerWord, setTriggerWord] = useState('');
+    const [refFiles, setRefFiles] = useState<File[]>([]);
+    const [submitting, setSubmitting] = useState(false);
 
-    useEffect(() => {
-        loadImages();
-    }, [loadImages]);
-
-    const handleDeleteImage = async (filename: string) => {
-        if (!confirm('Delete this image?')) return;
-
-        try {
-            const res = await fetch('/api/admin/themes/images/delete', {
-                method: 'POST',
-                body: JSON.stringify({ themeId: theme.id, filename, type })
-            });
-
-            if (res.ok) {
-                loadImages();
-                onImageDeleted(); // Trigger refresh on parent
-            } else {
-                alert('Failed to delete image');
-            }
-        } catch (error) {
-            console.error(error);
-            alert('Error deleting image');
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 w-full max-w-4xl h-[80vh] flex flex-col"
-            >
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-zinc-100">Manage {theme.name}</h2>
-                    <button onClick={onClose} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-white">
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto min-h-0 bg-zinc-950/50 rounded-lg p-4 border border-zinc-800/50">
-                    {loading ? (
-                        <div className="flex items-center justify-center h-full text-zinc-500">Loading images...</div>
-                    ) : images.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-zinc-500">No images found. Upload some!</div>
-                    ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            {images.map((img) => (
-                                <div key={img.name} className="group relative aspect-square bg-zinc-900 rounded-lg overflow-hidden border border-zinc-800">
-                                    <Image src={img.url} alt={img.name} fill className="object-cover" />
-                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <button
-                                            onClick={() => handleDeleteImage(img.name)}
-                                            className="p-2 bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white rounded-full transition-colors"
-                                            title="Delete Image"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                    <div className="absolute bottom-0 inset-x-0 p-2 bg-black/80 text-[10px] text-zinc-400 truncate">
-                                        {img.name}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </motion.div>
-        </div>
-    );
-}
-
-function ThemeCard({ theme, onTest, onUpload, onDelete, onManage }: {
-    theme: Theme,
-    onTest: (id: string) => void,
-    onUpload: (id: string, files: File[]) => Promise<void>,
-    onDelete: (id: string) => void,
-    onManage: (theme: Theme) => void
-}) {
-    const [isUploading, setIsUploading] = useState(false);
-
-    const onDrop = useCallback(async (acceptedFiles: File[]) => {
-        if (acceptedFiles.length > 0) {
-            setIsUploading(true);
-            await onUpload(theme.id, acceptedFiles);
-            setIsUploading(false);
-        }
-    }, [theme.id, onUpload]);
+    // Dropzone Logic
+    const onDrop = useCallback((acceptedFiles: File[]) => {
+        setRefFiles(prev => [...prev, ...acceptedFiles]);
+    }, []);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
-        onDropRejected: (fileRejections) => {
-            const errors = fileRejections.map(r => `${r.file.name}: ${r.errors.map(e => e.message).join(', ')}`).join('\n');
-            alert(`Files rejected:\n${errors}`);
-        },
-        noClick: false, // Allow click to select files on the zone
-        accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp'] }
+        accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp'] },
+        multiple: true
     });
 
-    return (
-        <div className="relative bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 hover:border-zinc-700 transition-all group">
+    const removeFile = (index: number) => {
+        setRefFiles(prev => prev.filter((_, i) => i !== index));
+    };
 
-            {/* Image Area - Contains Dropzone + Overlay Buttons */}
-            <div className="aspect-square relative bg-zinc-950">
-
-                {/* Dropzone Layer */}
-                <div {...getRootProps()} className={`absolute inset-0 z-10 cursor-pointer ${isDragActive ? 'ring-2 ring-amber-500/50' : ''}`}>
-                    <input {...getInputProps()} />
-                    {theme.previewImage ? (
-                        <Image src={theme.previewImage} alt={theme.name} fill className="object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                    ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-700 gap-2">
-                            <Upload className="w-8 h-8 opacity-20" />
-                            <span className="text-xs">Drop images to start</span>
-                        </div>
-                    )}
-
-                    {/* Uploading Overlay */}
-                    <AnimatePresence>
-                        {(isDragActive || isUploading) && (
-                            <motion.div
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                className="absolute inset-0 z-30 bg-black/80 flex flex-col items-center justify-center p-4 text-center backdrop-blur-sm"
-                            >
-                                {isUploading ? (
-                                    <>
-                                        <Loader2 className="w-8 h-8 text-amber-500 animate-spin mb-2" />
-                                        <span className="text-amber-500 font-bold">Uploading...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Upload className="w-10 h-10 text-amber-500 mb-2" />
-                                        <span className="text-zinc-200 font-bold">Drop Images Here</span>
-                                        <span className="text-zinc-500 text-xs">to add to {theme.name}</span>
-                                    </>
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                {/* Info Pills (Pointer events none to let clicks pass through to dropzone, or position carefully) */}
-                <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 rounded text-xs text-white font-mono backdrop-blur-sm z-20 pointer-events-none">
-                    {theme.imageCount} items
-                </div>
-
-                {/* Management Buttons - Sits ON TOP of dropzone (z-20) */}
-                <div className="absolute top-2 right-2 flex gap-1 z-20">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(theme.id); }}
-                        className="p-1.5 bg-black/60 hover:bg-red-500/80 hover:text-white rounded text-zinc-400 backdrop-blur-sm transition-colors shadow-lg"
-                        title="Delete Theme"
-                    >
-                        <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                        onClick={(e) => { e.stopPropagation(); onManage(theme); }}
-                        className="p-1.5 bg-black/60 hover:bg-zinc-700 hover:text-white rounded text-zinc-200 backdrop-blur-sm transition-colors shadow-lg"
-                        title="Manage Images"
-                    >
-                        <Grid className="w-3.5 h-3.5" />
-                    </button>
-                </div>
-
-            </div>
-
-            <div className="p-4 relative z-20 bg-zinc-900">
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <h3 className="font-bold text-zinc-200">{theme.name}</h3>
-                        <p className="text-xs text-zinc-500">ID: {theme.id}</p>
-                    </div>
-                </div>
-
-                <button
-                    onClick={() => onTest(theme.id)}
-                    className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm rounded-lg flex items-center justify-center gap-2 transition-colors"
-                >
-                    <Play className="w-3 h-3" /> Test Order
-                </button>
-            </div>
-        </div>
-    );
-}
-
-export default function ThemesPage() {
-    const [activeTab, setActiveTab] = useState<'portrait' | 'mockup'>('portrait');
-    const [themes, setThemes] = useState<Theme[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [testingTheme, setTestingTheme] = useState<string | null>(null);
-    void testingTheme;
-    const [showCreateModal, setShowCreateModal] = useState(false);
-    const [managingTheme, setManagingTheme] = useState<Theme | null>(null);
-    const [newThemeName, setNewThemeName] = useState('');
-
-    const loadThemes = useCallback(() => {
+    const loadThemes = async () => {
         setLoading(true);
-        const endpoint = activeTab === 'portrait' ? '/api/admin/themes' : '/api/admin/mockup-themes';
-
-        fetch(endpoint)
-            .then(res => res.json())
-            .then(data => setThemes(data.themes))
-            .catch(err => console.error('Failed to load themes:', err))
-            .finally(() => setLoading(false));
-    }, [activeTab]);
+        try {
+            const data = await getThemes();
+            setThemes(data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         loadThemes();
-    }, [loadThemes]);
+    }, []);
 
-    const handleTestTheme = async (themeId: string) => {
-        if (activeTab === 'mockup') return;
 
-        setTestingTheme(themeId);
+
+    const handleToggle = async (id: string, currentStatus: boolean) => {
         try {
-            await fetch('/api/admin/seed', {
-                method: 'POST',
-                body: JSON.stringify({ theme: themeId })
-            });
-            window.location.href = '/admin/review';
-        } catch (error) {
-            console.error(error);
-            alert('Failed to start test');
-        } finally {
-            setTestingTheme(null);
-        }
-    };
-
-    const handleUpload = async (themeId: string, files: File[]) => {
-        const formData = new FormData();
-        formData.append('themeId', themeId);
-        files.forEach(f => formData.append('files', f));
-
-        const endpoint = activeTab === 'portrait' ? '/api/admin/themes/upload' : '/api/admin/mockup-themes/upload';
-        console.log(`Uploading to ${endpoint} for theme ${themeId}`);
-
-        try {
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                body: formData
-            });
-
-            if (res.ok) {
-                loadThemes();
-                alert(`Upload Successful: ${files.length} files`);
-            } else {
-                const errText = await res.text();
-                console.error('Upload failed response:', errText);
-                alert(`Upload failed: ${res.status} ${res.statusText}\n${errText}`);
-            }
+            await toggleThemeStatus(id, !currentStatus);
+            setThemes(prev => prev.map(t => t.id === id ? { ...t, is_active: !currentStatus } : t));
         } catch (e) {
             console.error(e);
-            alert(`Upload error: ${e}`);
         }
     };
 
-    const handleDeleteTheme = async (themeId: string) => {
-        if (!confirm('Are you sure you want to delete this theme? This action cannot be undone.')) return;
+    const handleCreate = async () => {
+        setSubmitting(true);
+        const supabase = createClient();
 
         try {
-            const res = await fetch('/api/admin/themes/delete', {
-                method: 'POST',
-                body: JSON.stringify({ themeId, type: activeTab })
+            if (refFiles.length === 0) throw new Error("Please select at least one reference image.");
+            if (!newName || !newId) throw new Error("Name and ID are required.");
+
+            // 1. Upload Images Client-Side
+            const uploadedUrls: string[] = [];
+            const safeId = newId.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '');
+
+            // Alert user that upload is starting (optional, but good for feedback since we prevented refresh)
+            console.log("Starting upload for", refFiles.length, "images...");
+
+            for (const file of refFiles) {
+                const filename = `${safeId}/ref-${Date.now()}-${Math.random().toString(36).substring(7)}.${file.name.split('.').pop()}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('themes')
+                    .upload(filename, file);
+
+                if (uploadError) {
+                    console.error("Upload failed for file:", file.name, uploadError);
+                    throw new Error(`Upload failed for ${file.name}: ${uploadError.message}`);
+                }
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('themes')
+                    .getPublicUrl(filename);
+
+                uploadedUrls.push(publicUrl);
+            }
+
+            // 2. Save Metadata to DB via Server Action
+            // Use first image as cover image
+            const coverUrl = uploadedUrls[0];
+
+            const result = await saveThemeToDB({
+                name: newName,
+                id: safeId,
+                trigger_word: triggerWord || safeId,
+                reference_images: uploadedUrls,
+                cover_image_url: coverUrl
             });
 
-            if (res.ok) {
-                loadThemes();
-            } else {
-                alert('Failed to delete theme');
+            if (result.success) {
+                await loadThemes();
+                setIsCreateModalOpen(false);
+                setNewName('');
+                setNewId('');
+                setTriggerWord('');
+                setRefFiles([]);
+                alert('Theme created successfully!');
             }
-        } catch (error) {
-            console.error(error);
-            alert('Error deleting theme');
+        } catch (e: any) {
+            console.error('Theme Creation Failed:', e);
+            alert(`Failed to create theme: ${e.message || 'Unknown error'}`);
+        } finally {
+            setSubmitting(false);
         }
     };
-
-    const handleCreateTheme = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const endpoint = activeTab === 'portrait' ? '/api/admin/themes/create' : '/api/admin/mockup-themes/create';
-
-        try {
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                body: JSON.stringify({ name: newThemeName })
-            });
-            if (res.ok) {
-                setNewThemeName('');
-                setShowCreateModal(false);
-                loadThemes();
-            } else {
-                const data = await res.json();
-                alert(data.error || 'Failed to create');
-            }
-        } catch (error) {
-            console.error(error);
-            alert('Error creating theme');
-        }
-    };
-
-    if (loading && themes.length === 0) return <div className="p-8 text-zinc-400">Loading themes...</div>;
 
     return (
-        <div className="min-h-screen bg-zinc-950 p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div className="min-h-screen bg-black p-8 text-zinc-100 font-sans">
+            {/* Header */}
+            <div className="max-w-7xl mx-auto flex items-center justify-between mb-12">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-100 mb-1">Theme Library</h1>
-                    <p className="text-zinc-500 text-sm">Manage your portrait styles and product mockups.</p>
+                    <h1 className="text-3xl font-bold tracking-tight text-white mb-2">AI Style Manager</h1>
+                    <p className="text-zinc-500">Upload reference images to train/guide the AI generation.</p>
                 </div>
-
-                <div className="flex items-center gap-4">
-                    <div className="bg-zinc-900 p-1 rounded-lg flex border border-zinc-800">
-                        <button
-                            onClick={() => setActiveTab('portrait')}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'portrait'
-                                ? 'bg-zinc-800 text-zinc-100 shadow-sm'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                                }`}
-                        >
-                            Portraits
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('mockup')}
-                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'mockup'
-                                ? 'bg-amber-900/40 text-amber-200 shadow-sm'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                                }`}
-                        >
-                            Mockups
-                        </button>
-                    </div>
-
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="btn-primary flex items-center gap-2 px-4 py-2 rounded-lg"
-                    >
-                        <FolderPlus className="w-4 h-4" />
-                        New {activeTab === 'portrait' ? 'Theme' : 'Product'}
-                    </button>
-                </div>
+                <button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="flex items-center gap-2 bg-white text-black px-5 py-2.5 rounded-full font-medium hover:bg-zinc-200 transition-all hover:scale-105"
+                >
+                    <Plus className="w-4 h-4" /> New Style
+                </button>
             </div>
 
-            <div className="mb-6">
-                {activeTab === 'mockup' && (
-                    <div className="bg-amber-900/10 border border-amber-500/20 text-amber-200 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                        Upload your blank product images (T-Shirts, Mugs, etc) here to use them in Nano Banana Pro.
+            {/* Grid */}
+            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {themes.map((theme) => (
+                    <div key={theme.id} className="group relative bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden hover:border-zinc-700 transition-all">
+                        {/* Preview Area - Grid of first 4 images */}
+                        <div className="aspect-[3/4] relative bg-zinc-950 p-2 grid grid-cols-2 gap-1 overflow-hidden">
+                            {theme.reference_images && theme.reference_images.length > 0 ? (
+                                theme.reference_images.slice(0, 4).map((img, i) => (
+                                    <div key={i} className="relative aspect-square rounded-md overflow-hidden bg-zinc-900">
+                                        <Image
+                                            src={img}
+                                            alt="Ref"
+                                            fill
+                                            className={clsx("object-cover", !theme.is_active && "opacity-50 grayscale")}
+                                        />
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="col-span-2 row-span-2 flex items-center justify-center text-zinc-800">
+                                    <ImageIcon className="w-12 h-12 opacity-20" />
+                                    {theme.cover_image_url && <Image src={theme.cover_image_url} alt="Cover" fill className="object-cover -z-10 opacity-30" />}
+                                </div>
+                            )}
+
+                            {/* Overlay Controls */}
+                            <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <button
+                                    onClick={() => handleToggle(theme.id, theme.is_active)}
+                                    className={clsx(
+                                        "p-2 rounded-full backdrop-blur-md transition-colors shadow-xl",
+                                        theme.is_active ? "bg-green-500/90 text-white" : "bg-zinc-800 text-zinc-400"
+                                    )}
+                                    title={theme.is_active ? "Deactivate" : "Activate"}
+                                >
+                                    <Power className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        if (!window.confirm("Delete this style permanently?")) return;
+                                        try {
+                                            await deleteTheme(theme.id);
+                                            setThemes(prev => prev.filter(t => t.id !== theme.id));
+                                            alert('Theme deleted.');
+                                        } catch (err: any) {
+                                            alert('Delete failed: ' + err.message);
+                                        }
+                                    }}
+                                    className="p-2 bg-black/60 text-red-400 rounded-full hover:bg-red-500 hover:text-white backdrop-blur-md transition-colors shadow-xl"
+                                    title="Delete"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Info */}
+                        <div className="p-4 border-t border-zinc-800">
+                            <div className="flex justify-between items-start mb-1">
+                                <h3 className="font-bold text-lg text-zinc-100">{theme.name}</h3>
+                                <span className="text-[10px] font-mono bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">
+                                    {theme.reference_images?.length || 0} REFS
+                                </span>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                                <code className="text-[10px] text-zinc-600">ID: {theme.id}</code>
+                                <code className="text-[10px] text-amber-500">Trigger: {theme.trigger_word || theme.id}</code>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+
+                {/* Empty State */}
+                {themes.length === 0 && !loading && (
+                    <div className="col-span-full py-20 flex flex-col items-center justify-center text-zinc-600 border border-dashed border-zinc-800 rounded-2xl">
+                        <Search className="w-12 h-12 mb-4 opacity-20" />
+                        <p>No styles found. Create your first AI Style!</p>
                     </div>
                 )}
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {themes.map(theme => (
-                    <ThemeCard
-                        key={theme.id}
-                        theme={theme}
-                        onTest={handleTestTheme}
-                        onUpload={handleUpload}
-                        onDelete={handleDeleteTheme}
-                        onManage={setManagingTheme}
-                    />
-                ))}
-            </div>
+            {/* Create Modal */}
+            {isCreateModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                        <button
+                            onClick={() => setIsCreateModalOpen(false)}
+                            className="absolute top-4 right-4 text-zinc-500 hover:text-white"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
 
-            {themes.length === 0 && !loading && (
-                <div className="text-center py-20 border-2 border-dashed border-zinc-800 rounded-2xl">
-                    <p className="text-zinc-500 mb-2">No {activeTab} themes found.</p>
-                    <button onClick={() => setShowCreateModal(true)} className="text-amber-500 hover:underline">
-                        Create your first {activeTab === 'portrait' ? 'theme' : 'mockup product'}
-                    </button>
+                        <h2 className="text-xl font-bold mb-6">Connect New Style</h2>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-zinc-400 mb-1">Style Name</label>
+                                <input
+                                    required
+                                    className="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg px-4 py-3 focus:ring-1 focus:ring-amber-500 outline-none"
+                                    placeholder="e.g. Royalty"
+                                    value={newName}
+                                    onChange={e => {
+                                        setNewName(e.target.value);
+                                        // Auto-generate ID if empty (replace spaces with hyphens)
+                                        if (!newId) setNewId(e.target.value.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, ''));
+                                        if (!triggerWord) setTriggerWord(e.target.value.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, ''));
+                                    }}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-zinc-400 mb-1">Style ID</label>
+                                    <input
+                                        required
+                                        className="w-full bg-gray-50 border border-gray-300 text-gray-900 font-mono text-sm rounded-lg px-4 py-3 focus:ring-1 focus:ring-amber-500 outline-none"
+                                        placeholder="royalty"
+                                        value={newId}
+                                        onChange={e => setNewId(e.target.value.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, ''))}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-amber-500 mb-1">Trigger Word</label>
+                                    <input
+                                        required
+                                        className="w-full bg-gray-50 border border-amber-500/50 text-gray-900 font-mono text-sm rounded-lg px-4 py-3 focus:ring-1 focus:ring-amber-500 outline-none"
+                                        placeholder="royalty"
+                                        value={triggerWord}
+                                        onChange={e => setTriggerWord(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-zinc-400 mb-1">Reference Images (5+ Recommended)</label>
+
+                                {/* DROPZONE */}
+                                <div
+                                    {...getRootProps()}
+                                    className={clsx(
+                                        "border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors",
+                                        isDragActive ? "border-amber-500 bg-amber-500/10" : "border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800/50"
+                                    )}
+                                >
+                                    <input {...getInputProps()} />
+                                    <Upload className={clsx("w-8 h-8 mb-3", isDragActive ? "text-amber-500" : "text-zinc-500")} />
+                                    <p className="text-sm font-medium text-zinc-300">
+                                        {isDragActive ? "Drop files now..." : "Drag & Drop 5-10 images here"}
+                                    </p>
+                                    <p className="text-xs text-zinc-500 mt-1">or click to browse</p>
+                                </div>
+
+                                {/* STAGING AREA */}
+                                {refFiles.length > 0 && (
+                                    <div className="mt-4 grid grid-cols-4 gap-2">
+                                        {refFiles.map((file, i) => (
+                                            <div key={i} className="group relative aspect-square bg-zinc-800 rounded-md overflow-hidden border border-zinc-700">
+                                                <Image
+                                                    src={URL.createObjectURL(file)}
+                                                    alt="Preview"
+                                                    fill
+                                                    className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeFile(i)}
+                                                    className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white opacity-0 group-hover:opacity-100 hover:bg-red-500 transition-all"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {refFiles.length > 0 && (
+                                    <div className="mt-2 text-right text-xs text-green-400 font-medium">
+                                        {refFiles.length} images selected
+                                    </div>
+                                )}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleCreate}
+                                disabled={submitting || refFiles.length === 0}
+                                className={clsx(
+                                    "w-full py-3 rounded-lg font-medium mt-4 flex justify-center items-center transition-all",
+                                    submitting || refFiles.length === 0
+                                        ? "bg-zinc-800 text-zinc-500 cursor-not-allowed"
+                                        : "btn-primary"
+                                )}
+                            >
+                                {submitting ? <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" /> : `Create Style (${refFiles.length} Refs)`}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
-
-            <AnimatePresence>
-                {showCreateModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 w-full max-w-sm"
-                        >
-                            <h2 className="text-lg font-bold text-zinc-100 mb-4">
-                                Create New {activeTab === 'portrait' ? 'Theme' : 'Mockup Product'}
-                            </h2>
-                            <form onSubmit={handleCreateTheme}>
-                                <input
-                                    autoFocus
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-zinc-100 mb-4 focus:border-amber-500 outline-none"
-                                    placeholder={activeTab === 'portrait' ? "Theme Name (e.g. Superhero)" : "Product Name (e.g. White T-Shirt)"}
-                                    value={newThemeName}
-                                    onChange={(e) => setNewThemeName(e.target.value)}
-                                />
-                                <div className="flex justify-end gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowCreateModal(false)}
-                                        className="px-4 py-2 text-zinc-400 hover:text-zinc-100"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={!newThemeName.trim()}
-                                        className="btn-primary px-4 py-2 rounded"
-                                    >
-                                        Create
-                                    </button>
-                                </div>
-                            </form>
-                        </motion.div>
-                    </div>
-                )}
-
-                {managingTheme && (
-                    <ManageThemeModal
-                        theme={managingTheme}
-                        type={activeTab}
-                        onClose={() => setManagingTheme(null)}
-                        onImageDeleted={loadThemes}
-                    />
-                )}
-            </AnimatePresence>
         </div>
     );
 }

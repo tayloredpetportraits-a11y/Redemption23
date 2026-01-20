@@ -1,6 +1,5 @@
 {
-  "/api/customer/[orderId]/track-view/route": "app/api/customer/[orderId]/track-view/route.js",
-  "/portal/[id]/page": "app/portal/[id]/page.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/admin/products/page": "app/admin/products/page.js"
+  "/page": "app/page.js",
+  "/admin/settings/page": "app/admin/settings/page.js",
+  "/admin/page": "app/admin/page.js"
 }
