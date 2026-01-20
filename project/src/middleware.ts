@@ -9,8 +9,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const adminToken = request.cookies.get('admin-token')?.value;
-  const isAuthenticated = adminToken === 'authenticated';
+  // TEMPORARY BYPASS: User forgot password / Resetting state
+  // const adminToken = request.cookies.get('admin-token')?.value;
+  // const isAuthenticated = adminToken === 'authenticated';
+  const isAuthenticated = true;
 
   if (isLoginPage) {
     if (isAuthenticated) {

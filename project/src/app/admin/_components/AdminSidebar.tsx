@@ -38,15 +38,11 @@ export default function AdminSidebar() {
             icon: Palette
         },
         {
-            label: 'Mockups',
-            href: '/admin/mockups',
+            label: 'Manage Mockups',
+            href: '/admin/products',
             icon: ImageIcon
         },
-        {
-            label: 'Marketing',
-            href: '/admin/marketing',
-            icon: Share2
-        }
+
     ];
 
     return (

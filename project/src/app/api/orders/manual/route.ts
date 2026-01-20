@@ -1,59 +1,58 @@
 import { NextResponse } from 'next/server';
-import { mockDb } from '@/lib/mock-db';
-import fs from 'fs';
-import path from 'path';
+import { createAdminClient } from '@/lib/supabase/server';
+import { generateImagesForOrder } from '@/lib/ai/generation';
+import { uploadFile, getPublicUrl } from '@/lib/supabase/storage';
 
 export async function POST(req: Request) {
     try {
         const formData = await req.formData();
+        const supabase = createAdminClient();
 
         const customerName = formData.get('customerName') as string;
         const customerEmail = formData.get('customerEmail') as string;
         const productType = formData.get('productType') as string || 'Manual Order';
         const files = formData.getAll('files') as File[];
-        const mockups = formData.getAll('mockups') as File[];
+        // Mockups not strictly handled here yet, can be added if needed, but primary focus is generation
 
-        // 1. Create Order
-        const order = await mockDb.insertOrder({
+        if (files.length === 0) {
+            return NextResponse.json({ error: 'No files provided' }, { status: 400 });
+        }
+
+        const file = files[0]; // Take first file for generation
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const timestamp = Date.now();
+        const safeName = `manual_${timestamp}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const storagePath = `uploads/manual/${safeName}`;
+
+        // 1. Upload to Real Storage
+        await uploadFile(storagePath, buffer);
+        const publicUrl = getPublicUrl(storagePath);
+
+        // 2. Create Real Order
+        const { data: order, error: orderError } = await supabase.from('orders').insert({
             customer_name: customerName,
             customer_email: customerEmail,
             product_type: productType,
-            status: 'ready' // Ready for customer immediately
-        });
+            status: 'pending', // Pending generation
+            pet_image_url: publicUrl,
+            pet_name: 'Manual Order Pet'
+        }).select().single();
 
-        // 2. Save Images
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', order.id);
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
+        if (orderError || !order) {
+            console.error("Order creation failed:", orderError);
+            throw new Error("Failed to create order");
         }
 
-        const saveFile = async (file: File, type: 'primary' | 'mockup', index: number) => {
-            const buffer = Buffer.from(await file.arrayBuffer());
-            // Sanitize filename
-            const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const filePath = path.join(uploadDir, safeName);
-            fs.writeFileSync(filePath, buffer);
-
-            return {
-                order_id: order.id,
-                url: `/uploads/${order.id}/${safeName}`,
-                storage_path: `uploads/${order.id}/${safeName}`,
-                type: type,
-                status: 'approved', // Auto-approve manual uploads
-                display_order: index,
-                is_selected: false,
-                is_bonus: false
-            };
-        };
-
-        const primaryImages = await Promise.all(files.map((f, i) => saveFile(f, 'primary', i)));
-        const mockupImages = await Promise.all(mockups.map((f, i) => saveFile(f, 'mockup', i)));
-
-        const allImages = [...primaryImages, ...mockupImages];
-
-        // 3. Insert Image Records
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await mockDb.insertImages(allImages as any);
+        // 3. Trigger Async Generation (Fire and Forget)
+        // We don't await this so the UI returns quickly
+        generateImagesForOrder(
+            order.id,
+            publicUrl,
+            productType,
+            '', // Breed unknown
+            '', // Details unknown
+            false // Auto approve off by default for manual
+        ).catch(e => console.error("Async generation failed:", e));
 
         return NextResponse.json({
             success: true,

@@ -19,7 +19,7 @@ export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [imagesMap, setImagesMap] = useState<Record<string, ImageType[]>>({});
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<Tab>('needs_review');
+  const [activeTab, setActiveTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
 
   // Quick View State

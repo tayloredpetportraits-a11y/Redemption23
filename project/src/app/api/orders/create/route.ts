@@ -4,6 +4,7 @@ import { generateImagesForOrder } from '@/lib/ai/generation';
 // import { mockDb } from '@/lib/mock-db';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendCustomerNotification } from '@/lib/email';
+import { uploadFile, getPublicUrl } from '@/lib/supabase/storage';
 import fs from 'fs';
 import path from 'path';
 
@@ -33,14 +34,13 @@ export async function POST(req: Request) {
 
       // Save the pet photo if provided
       if (petPhoto) {
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'pets');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
+        // Upload to Supabase Storage instead of local FS
         const buffer = Buffer.from(await petPhoto.arrayBuffer());
         const safeName = `pet-${Date.now()}-${petPhoto.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-        fs.writeFileSync(path.join(uploadDir, safeName), buffer);
-        petPhotoUrl = `/uploads/pets/${safeName}`;
+        const storagePath = `uploads/pets/${safeName}`;
+
+        await uploadFile(storagePath, buffer);
+        petPhotoUrl = getPublicUrl(storagePath);
       } else {
         petPhotoUrl = 'https://placeholder/dog.jpg';
       }

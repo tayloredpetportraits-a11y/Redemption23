@@ -1,4 +1,4 @@
-// File: /Users/taylorstrong/Redemption23-1/project/src/app/admin/layout.tsx
+// File: /Volumes/Tays SSD/Archived Files/Redemption23-1/project/src/app/admin/layout.tsx
 import * as entry from '../../../../src/app/admin/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

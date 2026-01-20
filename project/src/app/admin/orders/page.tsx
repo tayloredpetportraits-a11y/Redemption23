@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { Search, Loader2, AlertCircle, Inbox, RefreshCcw, CheckCircle2, LayoutGrid } from 'lucide-react';
+import { Search, Loader2, AlertCircle, Inbox, RefreshCcw, CheckCircle2, LayoutGrid, Image as ImageIcon } from 'lucide-react';
 import type { Order } from '@/lib/supabase/client';
+import Image from 'next/image';
 
 type Tab = 'all' | 'inbox' | 'revising' | 'fulfilled' | 'archived';
 
@@ -271,6 +272,7 @@ export default function AdminOrdersPage() {
                                             className="rounded border-zinc-700 bg-zinc-800 text-amber-500 focus:ring-amber-500"
                                         />
                                     </th>
+                                    <th className="p-4 w-16">Image</th>
                                     <th className="p-4 font-medium">Date</th>
                                     <th className="p-4 font-medium">Customer</th>
                                     <th className="p-4 font-medium">Pet</th>
@@ -283,11 +285,9 @@ export default function AdminOrdersPage() {
                                     <tr
                                         key={order.id}
                                         className={`hover:bg-zinc-800/50 cursor-pointer transition-colors ${selectedOrderIds.has(order.id) ? 'bg-amber-500/5' : ''}`}
-                                        onClick={(e) => {
-                                            if ((e.target as HTMLElement).tagName === 'INPUT') return;
-                                            if ((e.target as HTMLElement).tagName === 'BUTTON') return;
-                                            router.push(`/admin/orders/${order.id}`);
-                                        }}
+                                    <tr
+                                        key={order.id}
+                                        className={`group hover:bg-zinc-800/50 transition-colors ${selectedOrderIds.has(order.id) ? 'bg-amber-500/5' : ''}`}
                                     >
                                         <td className="p-4">
                                             <input
@@ -297,12 +297,33 @@ export default function AdminOrdersPage() {
                                                 className="rounded border-zinc-700 bg-zinc-800 text-amber-500 focus:ring-amber-500"
                                             />
                                         </td>
+                                        <td className="p-4">
+                                            <div className="w-10 h-10 relative rounded-md overflow-hidden bg-zinc-800 border border-zinc-700">
+                                                {order.pet_image_url ? (
+                                                    <Image
+                                                        src={order.pet_image_url}
+                                                        alt="Pet"
+                                                        fill
+                                                        className="object-cover"
+                                                        sizes="40px"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                                        <ImageIcon className="w-5 h-5" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="p-4 whitespace-nowrap">
                                             {format(new Date(order.created_at), 'MMM d, yyyy')}
                                             <div className="text-xs text-zinc-600">{format(new Date(order.created_at), 'h:mm a')}</div>
                                         </td>
                                         <td className="p-4">
-                                            <div className="font-medium text-zinc-200">{order.customer_name}</div>
+                                            <div className="font-medium text-zinc-200">
+                                                <a href={`/admin/orders/${order.id}`} className="hover:text-amber-500 hover:underline">
+                                                    {order.customer_name}
+                                                </a>
+                                            </div>
                                             <div className="text-xs">{order.customer_email}</div>
                                         </td>
                                         <td className="p-4">
@@ -319,9 +340,12 @@ export default function AdminOrdersPage() {
                                             )}
                                         </td>
                                         <td className="p-4 flex items-center gap-3">
-                                            <span className="text-amber-500 hover:text-amber-400 font-medium">
+                                            <button
+                                                onClick={() => router.push(`/admin/orders/${order.id}`)}
+                                                className="text-amber-500 hover:text-amber-400 font-medium hover:underline"
+                                            >
                                                 Manage &rarr;
-                                            </span>
+                                            </button>
                                             {activeTab !== 'archived' && (
                                                 <button
                                                     onClick={(e) => handleArchiveOrder(order.id, e)}

@@ -4,24 +4,7 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '*.supabase.co',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.pexels.com',
-      },
-
-      {
-        protocol: 'https',
-        hostname: 'placekitten.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'placedog.net',
-      },
-      {
-        protocol: 'https',
-        hostname: 'placehold.co',
+        hostname: '**',
       },
     ],
   },

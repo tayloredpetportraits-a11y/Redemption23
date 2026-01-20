@@ -150,35 +150,99 @@ function getBonusTemplates(excludeTheme: string, count: number): { path: string,
     return tmpls.map(t => ({ path: t, theme: selectedBonusTheme }));
 }
 
+// Helper to create a Center-Subject Mask
+async function createSubjectMask(templateBuffer: Buffer): Promise<Buffer> {
+    const image = sharp(templateBuffer);
+    const metadata = await image.metadata();
+    const width = metadata.width || 1024;
+    const height = metadata.height || 1024;
+
+    // Create a simple oval mask in the center
+    // Assuming the dog head is roughly in the top-center usually
+    // We'll make a mask that is white in the center (keep/edit) and black outside (protected)?
+    // WAIT: Inpainting masks usually work as: White = Edit this area, Black = Keep this area.
+    // The user said: "Fill the masked area". So Mask = Area to change.
+
+    const mask = await sharp({
+        create: {
+            width: width,
+            height: height,
+            channels: 4,
+            background: { r: 0, g: 0, b: 0, alpha: 1 } // Black background (Protected)
+        }
+    })
+        .composite([{
+            input: Buffer.from(
+                `<svg width="${width}" height="${height}">
+                <ellipse cx="${width / 2}" cy="${height * 0.4}" rx="${width * 0.25}" ry="${height * 0.3}" fill="white" filter="url(#blur)" />
+                <filter id="blur">
+                  <feGaussianBlur stdDeviation="20" />
+                </filter>
+            </svg>`
+            ),
+            blend: 'over'
+        }])
+        .png()
+        .toBuffer();
+
+    return mask;
+}
+
 export async function generateNanoSwap(templatePath: string, petBuffer: Buffer, promptOverride: string): Promise<Buffer | null> {
     try {
         const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
-        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+        // Using Gemini 1.5 Pro for Inpainting capabilities or Imagen 3 if available. 
+        // For now, sticking to the user's preferred "Nano" model name or standard Gemini Pro 
+        // as the user's prompt implies a "Nano Banana" workflow.
+        // But for Inpainting, we need to send the mask.
+        // Using Gemini 3.0 Pro Image (Nano Banana Pro) for Reasoning capabilities
+        const model = genAI.getGenerativeModel({ model: "models/nano-banana-pro-preview" });
 
         const getMimeType = (filePath: string) => {
             const ext = path.extname(filePath).toLowerCase();
-            if (ext === '.png') return 'image/png';
-            if (ext === '.webp') return 'image/webp';
-            if (ext === '.avif') return 'image/avif';
-            return 'image/jpeg';
+            return (ext === '.png' || ext === '.webp') ? `image/${ext.slice(1)}` : 'image/jpeg';
         };
 
         const templateMime = getMimeType(templatePath);
-        // Assume petBuffer is JPEG or PNG. Google AI handles standard image buffers well usually, 
-        // but explicit mime type is good. We'll default to jpeg if unknown for buffer.
         const petMime = 'image/jpeg';
 
-        console.log(`[Nano] Swapping: Template (${templateMime}) + Pet Buffer`);
+        console.log(`[Nano] Starting Inpainting Swap...`);
 
-        const templateBuf = fs.readFileSync(templatePath).toString('base64');
+        // 1. Load Template
+        const templateBuffer = fs.readFileSync(templatePath);
+
+        // 2. Generate Auto-Mask (The "Hole" for the new face)
+        const maskBuffer = await createSubjectMask(templateBuffer);
+
+        // Debug: Save mask to verify (Optional, can remove later)
+        // fs.writeFileSync('debug_latest_mask.png', maskBuffer);
+
+        const templateBase64 = templateBuffer.toString('base64');
+        const maskBase64 = maskBuffer.toString('base64');
         const petBase64 = petBuffer.toString('base64');
 
-        const prompt = promptOverride || "Replace the main subject (animal) in the first image with the customer's pet in the second image. Maintain the exact style, clothing, and composition of the first image. High quality.";
+        // 3. Construct Inpainting Prompt
+        // "Fill the masked area with the dog from the Customer Photo. It must wear the robe from the Template..."
+        const prompt = promptOverride || `
+            Task: Inpainting / Face Swap.
+            Input Images:
+            1. Template Image (The scene/costume).
+            2. Mask Image (White area indicates where to draw the new face).
+            3. Customer Pet Photo (The reference subject).
+            
+            Instructions:
+            - Fill the WHITE area of the Mask with the head/face of the dog from the Customer Pet Photo.
+            - The new face must seamlessly match the lighting, angle, and style of the Template Image.
+            - The dog MUST appear to be wearing the costume from the Template.
+            - DO NOT change any pixels in the BLACK area of the mask (Keep background exactly as is).
+            - High fidelity, photorealistic, 1.0 denoising strength.
+        `;
 
         const result = await model.generateContent([
             prompt,
-            { inlineData: { data: petBase64, mimeType: petMime } },      // Image 1: Source Pet
-            { inlineData: { data: templateBuf, mimeType: templateMime } } // Image 2: Template
+            { inlineData: { data: templateBase64, mimeType: templateMime } }, // Template
+            { inlineData: { data: maskBase64, mimeType: "image/png" } },      // Mask (Always PNG)
+            { inlineData: { data: petBase64, mimeType: petMime } }            // Pet Reference
         ]);
 
         const parts = result.response.candidates?.[0]?.content?.parts;
@@ -186,23 +250,37 @@ export async function generateNanoSwap(templatePath: string, petBuffer: Buffer, 
 
         if (imagePart && imagePart.inlineData?.data) {
             let buffer = Buffer.from(imagePart.inlineData.data, 'base64');
-
-            // Upscale for Print Quality
             try {
                 buffer = await upscaleImage(buffer);
             } catch (err) {
                 console.error("Upscaling failed, using original:", err);
             }
-
             return buffer;
         } else {
-            console.error("Nano Banana returned no image part.");
+            console.error("Nano Banana (Inpainting) returned no image part.");
             return null;
         }
     } catch (e) {
-        console.error("Nano Swap failed:", e);
+        console.error("Nano Swap (Inpainting) failed:", e);
         return null;
     }
+}
+
+export async function generateSinglePortrait(
+    orderId: string,
+    templatePath: string,
+    petBuffer: Buffer,
+    prompt: string,
+    filename: string
+): Promise<{ url: string, storagePath: string, buffer: Buffer } | null> {
+    const portraitBuffer = await generateNanoSwap(templatePath, petBuffer, prompt);
+    if (!portraitBuffer) return null;
+
+    const path = `generated/${orderId}/${filename}`;
+    await uploadFile(path, portraitBuffer);
+    const url = getPublicUrl(path);
+
+    return { url, storagePath: path, buffer: portraitBuffer };
 }
 
 export async function generateMockupWithCustomBlank(templatePath: string, portraitPath: string, outputPath: string) {
@@ -450,30 +528,26 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
         console.log(`[Nano] Generating Primary Portrait ${i + 1}/${portraitTemplates.length}...`);
         const tmpl = portraitTemplates[i];
 
-        // Portrait Prompt
-        let prompt = "Image 1 is the Reference Pet. Image 2 is the Scene Template. action: Replace the subject in Image 2 with the dog from Image 1.";
-        if (petBreed) prompt += ` The dog is a ${petBreed}.`;
-        prompt += " Recreate the scene from Image 2 exactly, but using the dog from Image 1. Identity Lock: Mandatory.";
-        if (petDetails) prompt += ` Verify features: ${petDetails}.`;
+        const petLabel = petBreed ? `the ${petBreed}` : 'the dog';
+        let prompt = `Reasoning Task: Look at the reference image. Identify ${petLabel}'s unique features (eyes, snout, markings). Look at the template image. Replace the animal in the template with ${petLabel} from the reference. Keep the costume and background exactly as they are.`;
+        if (petDetails) prompt += ` Ensure these features are visible: ${petDetails}.`;
 
-        const portraitBuffer = await generateNanoSwap(tmpl, petBuffer, prompt);
+        const filename = `portrait_primary_${i}.png`;
+        const result = await generateSinglePortrait(orderId, tmpl, petBuffer, prompt, filename);
 
-        if (portraitBuffer) {
-            if (!bestPortraitBuffer) bestPortraitBuffer = portraitBuffer; // Save first as 'best' for now
-
-            // Upload Portrait
-            const filename = `portrait_primary_${i}.png`;
-            const url = await uploadGenerated(portraitBuffer, filename);
+        if (result) {
+            if (!bestPortraitBuffer) bestPortraitBuffer = result.buffer; // Save first as 'best' for now
 
             generatedImages.push({
                 order_id: orderId,
-                url: url,
-                storage_path: `generated/${orderId}/${filename}`,
+                url: result.url,
+                storage_path: result.storagePath,
                 type: 'primary',
                 display_order: i,
                 theme_name: 'Portrait Option',
                 is_bonus: false,
-                status: autoApprove ? 'approved' : 'pending'
+                status: autoApprove ? 'approved' : 'pending',
+                template_id: tmpl // Save template path for regeneration
             });
         }
     }
@@ -484,25 +558,23 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
         const tmpl = bonusTemplates[i].path;
 
         // Portrait Prompt (Same logic)
-        let prompt = "Image 1 is the Reference Pet. Image 2 is the Scene Template. action: Replace the subject in Image 2 with the dog from Image 1.";
-        if (petBreed) prompt += ` The dog is a ${petBreed}.`;
-        prompt += " Recreate the scene from Image 2 exactly, but using the dog from Image 1. Identity Lock: Mandatory.";
+        const petLabelBonus = petBreed ? `the ${petBreed}` : 'the dog';
+        const prompt = `Reasoning Task: Look at the reference image. Identify ${petLabelBonus}'s unique features (eyes, snout, markings). Look at the template image. Replace the animal in the template with ${petLabelBonus} from the reference. Keep the costume and background exactly as they are.`;
 
-        const portraitBuffer = await generateNanoSwap(tmpl, petBuffer, prompt);
+        const filename = `portrait_bonus_${i}.png`;
+        const result = await generateSinglePortrait(orderId, tmpl, petBuffer, prompt, filename);
 
-        if (portraitBuffer) {
-            const filename = `portrait_bonus_${i}.png`;
-            const url = await uploadGenerated(portraitBuffer, filename);
-
+        if (result) {
             generatedImages.push({
                 order_id: orderId,
-                url: url,
-                storage_path: `generated/${orderId}/${filename}`,
+                url: result.url,
+                storage_path: result.storagePath,
                 type: 'primary',
                 display_order: 10 + i,
                 theme_name: `Bonus: ${bonusTemplates[i].theme}`, // Label with theme
                 is_bonus: true,
-                status: autoApprove ? 'approved' : 'pending'
+                status: autoApprove ? 'approved' : 'pending',
+                template_id: tmpl // Save template path
             });
         }
     }

@@ -1,24 +1,24 @@
 {
   "../node_modules/@supabase/auth-js/dist/module/lib/helpers.js -> @supabase/node-fetch": {
-    "id": 485,
+    "id": "../node_modules/@supabase/auth-js/dist/module/lib/helpers.js -> @supabase/node-fetch",
     "files": []
   },
   "../node_modules/@supabase/functions-js/dist/module/helper.js -> @supabase/node-fetch": {
-    "id": 485,
+    "id": "../node_modules/@supabase/functions-js/dist/module/helper.js -> @supabase/node-fetch",
     "files": []
   },
   "../node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js -> @supabase/node-fetch": {
-    "id": 485,
+    "id": "../node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js -> @supabase/node-fetch",
     "files": []
   },
   "../node_modules/@supabase/storage-js/dist/module/lib/helpers.js -> @supabase/node-fetch": {
-    "id": 485,
+    "id": "../node_modules/@supabase/storage-js/dist/module/lib/helpers.js -> @supabase/node-fetch",
     "files": []
   },
   "components/CustomerGallerySteps/StepTwoRedemption.tsx -> @/app/actions/generate-gloss": {
-    "id": 8421,
+    "id": "components/CustomerGallerySteps/StepTwoRedemption.tsx -> @/app/actions/generate-gloss",
     "files": [
-      "static/chunks/421.b7de20b9f0742414.js"
+      "static/chunks/_app-pages-browser_src_app_actions_generate-gloss_ts.js"
     ]
   }
 }

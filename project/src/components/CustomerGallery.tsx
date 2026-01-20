@@ -11,6 +11,7 @@ import StepOneGallery from './CustomerGallerySteps/StepOneGallery';
 import StepTwoRedemption from './CustomerGallerySteps/StepTwoRedemption';
 import StepThreeBonus from './CustomerGallerySteps/StepThreeBonus';
 import RevisionStatus from './CustomerGallerySteps/RevisionStatus';
+import type { ProductTemplate } from './ProductMockup';
 
 // Re-export shared types/constants if needed
 export const PRINT_PRODUCTS = [
@@ -26,9 +27,11 @@ interface CustomerGalleryProps {
   baseImages: ImageType[];
   bonusImages: ImageType[];
   mockupImages: ImageType[];
+  productTemplates: ProductTemplate[];
+  upsellImages: ImageType[];
 }
 
-export default function CustomerGallery({ order, baseImages, bonusImages, mockupImages }: CustomerGalleryProps) {
+export default function CustomerGallery({ order, baseImages, bonusImages, mockupImages, productTemplates, upsellImages }: CustomerGalleryProps) {
   // State for Steps
   const [currentStep, setCurrentStep] = useState(1);
   const steps = ['The Reveal', 'Redemption', 'Bonus & Share'];
@@ -144,6 +147,7 @@ export default function CustomerGallery({ order, baseImages, bonusImages, mockup
               {currentStep === 1 && (
                 <StepOneGallery
                   images={baseImages}
+                  upsellImages={upsellImages}
                   petName={petName}
                   onImageClick={(idx) => handleImageClick(baseImages, idx)}
                   onNext={handleNextStep}
@@ -157,6 +161,7 @@ export default function CustomerGallery({ order, baseImages, bonusImages, mockup
                   images={baseImages}
                   mockupImages={mockupImages}
                   products={PRINT_PRODUCTS}
+                  productTemplates={productTemplates}
                   selectedImageId={selectedImageId}
                   setSelectedImageId={setSelectedImageId}
                   printProduct={printProduct}

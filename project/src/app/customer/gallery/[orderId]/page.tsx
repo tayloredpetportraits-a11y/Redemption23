@@ -26,8 +26,14 @@ export default async function Page({ params }: { params: { orderId: string } }) 
         .from('images')
         .select('*')
         .eq('order_id', orderId)
-        .or('status.eq.approved,is_bonus.eq.true')
+        // Show approved, bonus, AND pending images so customer can see them immediately
+        .or('status.eq.approved,status.eq.pending,is_bonus.eq.true')
         .order('display_order', { ascending: true });
+
+    console.log(`[Server Gallery] Order: ${orderId}, Images Found: ${images?.length}`);
+    if (images && images.length > 0) {
+        console.log(`[Server Gallery] Sample Status: ${images[0].status}, Bonus: ${images[0].is_bonus}`);
+    }
 
     if (imgError || !images) {
         console.error('Failed to fetch images:', imgError);
