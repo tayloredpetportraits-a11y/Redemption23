@@ -69,4 +69,12 @@ export type ProductTemplate = {
   is_active: boolean;
   created_at: string;
   price_id?: string;
+  mask_url?: string | null;
+  warp_config?: {
+    tl: { x: number; y: number };
+    tr: { x: number; y: number };
+    bl: { x: number; y: number };
+    br: { x: number; y: number };
+    clip?: string;
+  };
 };

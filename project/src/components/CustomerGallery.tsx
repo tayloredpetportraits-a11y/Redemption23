@@ -342,14 +342,12 @@ export default function CustomerGallery({
                     <div className="absolute inset-0 flex items-center justify-center text-slate-600 text-xs text-center p-4">
                       (Preview of {order.pet_name} on Canvas)
                     </div>
-                    {upsellImages && upsellImages.length > 0 && (
-                      <ImageComponent
-                        src={upsellImages[0].url}
-                        fill
-                        alt="Canvas Preview"
-                        className="object-cover opacity-80 group-hover:scale-110 transition-transform duration-700"
-                      />
-                    )}
+                    <ImageComponent
+                      src={selectedImage.url}
+                      fill
+                      alt="Canvas Preview"
+                      className="object-cover opacity-80 group-hover:scale-110 transition-transform duration-700"
+                    />
                   </div>
 
                   <button

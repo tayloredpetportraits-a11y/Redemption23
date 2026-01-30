@@ -322,7 +322,7 @@ export async function generateNanoSwap(templatePath: string, petBuffer: Buffer, 
         if (imagePart && imagePart.inlineData?.data) {
             let buffer = Buffer.from(imagePart.inlineData.data, 'base64');
             try {
-                buffer = await upscaleImage(buffer) as Buffer;
+                buffer = await upscaleImage(buffer) as any;
             } catch (err) {
                 console.error("Upscaling failed, using original:", err);
             }

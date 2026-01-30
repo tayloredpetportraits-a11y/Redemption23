@@ -48,24 +48,16 @@ export async function POST(req: NextRequest) {
         if (session.metadata?.type === 'bonus_unlock' || session.metadata?.productType === 'bonus_theme') {
           const orderId = session.metadata.orderId;
 
-          const { error } = await supabase
-            .from('orders')
-            .update({
-              bonus_unlocked: true,
-              bonus_payment_status: 'paid',
-              stripe_session_id: session.id,
-            })
-            .eq('id', orderId);
-
-          if (error) {
-            console.error('Failed to update order:', error);
-            return NextResponse.json(
-              { error: 'Failed to update order' },
-              { status: 500 }
-            );
+          // Use centralized unlock logic
+          const { unlockBonusContent } = await import('@/lib/orders/unlock');
+          try {
+            await unlockBonusContent(orderId);
+            console.log(`Bonus theme unlocked via Stripe for order ${orderId}`);
+          } catch (err) {
+            console.error(`Failed to unlock bonus content for order ${orderId}`, err);
+            // We don't return error here to avoid failing the webhook (which would cause retries),
+            // but we should probably log it critically.
           }
-
-          console.log(`Bonus theme unlocked for order ${orderId}`);
         }
         break;
       }

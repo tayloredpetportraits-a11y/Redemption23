@@ -471,6 +471,7 @@ export default function StepTwoRedemption({
                                 portraitUrl={selectedImageUrl}
                                 petName={petName}
                                 currentProduct={printProduct}
+                                images={images} // Pass available images for carousel
                                 onAddToCart={(productId) => {
                                     setPrintProduct(productId);
                                     setShowUpsell(false);

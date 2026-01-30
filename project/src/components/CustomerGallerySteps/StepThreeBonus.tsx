@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { Lock, Sparkles, Share2, Check, Star } from 'lucide-react';
@@ -20,7 +20,8 @@ interface StepThreeBonusProps {
     printProduct: string;
 }
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import confetti from 'canvas-confetti';
 
 export default function StepThreeBonus({
     order,
@@ -40,11 +41,32 @@ export default function StepThreeBonus({
 
     const bonusTheme = bonusImages[0]?.theme_name || 'Artistic Style';
 
-    const handleUnlockBonus = async () => {
-        // Simulate Payment Flow
-        // Simulate Payment Flow (for demo/dev purposes, or production mock)
-        addToast('Processing $4.99 payment...', 'info');
 
+
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        if (bonusUnlocked) {
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#FFD700', '#FFA500', '#FF4500', '#008080', '#40E0D0'] // Brand colors + Gold
+            });
+        }
+    }, [bonusUnlocked]);
+
+    useEffect(() => {
+        if (searchParams.get('payment') === 'success') {
+            setBonusUnlocked(true);
+            addToast('Payment successful! Enjoy your bonus themes.', 'success');
+        }
+    }, [searchParams, setBonusUnlocked, addToast]);
+
+
+    const handleUnlockBonus = async () => {
+        // ... (existing analytics)
+        addToast('Processing $4.99 payment...', 'info');
 
         setCheckoutLoading(true);
         logger.info('Starting bonus unlock flow', { orderId: order.id });
@@ -59,7 +81,13 @@ export default function StepThreeBonus({
                 router.refresh(); // Fetch clean URLs from server
                 addToast('Bonus themes unlocked successfully!', 'success');
                 logger.info('Bonus unlocked successfully', { orderId: order.id });
-                // confetti call moved to parent or we import it here?
+
+                // Trigger confetti manually for manual unlock
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
             } else {
                 addToast('Failed to unlock bonus. Please try again.', 'error');
                 logger.error('Unlock failed response', { status: response.status });
@@ -152,10 +180,13 @@ export default function StepThreeBonus({
                                 `}
                             />
                             {!bonusUnlocked && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-brand-navy/20 backdrop-blur-[1px] transition-all group-hover:bg-brand-navy/10">
-                                    <div className="bg-white/90 p-3 rounded-full shadow-lg backdrop-blur text-brand-navy">
-                                        <Lock className="w-6 h-6" />
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-brand-navy/30 backdrop-blur-[3px] transition-all group-hover:bg-brand-navy/20 group-hover:backdrop-blur-[1px]">
+                                    <div className="bg-white/90 p-4 rounded-full shadow-2xl backdrop-blur-xl text-brand-navy mb-3 transform group-hover:scale-110 transition-transform">
+                                        <Lock className="w-8 h-8" />
                                     </div>
+                                    <span className="text-white font-bold text-shadow-sm tracking-wide opacity-90 text-sm bg-black/20 px-3 py-1 rounded-full backdrop-blur-md">
+                                        PREVIEW ONLY
+                                    </span>
                                 </div>
                             )}
                         </motion.div>
