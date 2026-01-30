@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Image as ImageType } from '@/lib/supabase/client';
-import ReviewGrid from './ReviewGrid';
+import ReviewDeck from './ReviewDeck';
 
 export default function AdminReviewPage() {
   const [queue, setQueue] = useState<ImageType[]>([]);
@@ -31,14 +31,15 @@ export default function AdminReviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleApprove = async (ids: string[]) => {
+  // Modified to handle single ID for the Deck view
+  const handleApprove = async (id: string) => {
     // Optimistic Update
-    setQueue(current => current.filter(img => !ids.includes(img.id)));
+    setQueue(current => current.filter(img => img.id !== id));
 
     const { error } = await supabase
       .from('images')
       .update({ status: 'approved' })
-      .in('id', ids);
+      .eq('id', id);
 
     if (error) {
       console.error("Failed to approve", error);
@@ -61,7 +62,7 @@ export default function AdminReviewPage() {
   };
 
   return (
-    <ReviewGrid
+    <ReviewDeck
       images={queue}
       loading={loading}
       onApprove={handleApprove}

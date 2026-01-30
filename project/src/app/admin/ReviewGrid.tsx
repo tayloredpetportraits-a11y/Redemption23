@@ -10,6 +10,7 @@ import Image from 'next/image';
 import type { Image as ImageType, Order } from '@/lib/supabase/client';
 import { regenerateSingleImage } from '@/app/actions/gen-actions';
 import PugLoader from '@/components/PugLoader';
+import ProReviewModal from './_components/ProReviewModal';
 
 interface ReviewGridProps {
     images: ImageType[];
@@ -293,223 +294,21 @@ export default function ReviewGrid({ images, orders, onApprove, onReject, loadin
                 })}
             </div>
 
-            {/* Focus Modal (Lightroom Style) */}
-            <AnimatePresence>
-                {focusedImage && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 bg-black/95 flex flex-col"
-                    >
-                        {/* 1. Main Stage (Image) */}
-                        <div className="flex-1 relative flex items-center justify-center p-4 overflow-hidden" onClick={() => setFocusedImage(null)}>
-                            {/* Close Button */}
-                            <button
-                                onClick={() => setFocusedImage(null)}
-                                className="absolute top-4 right-4 z-50 bg-black/50 text-zinc-400 hover:text-white p-2 rounded-full backdrop-blur-md"
-                            >
-                                <XCircle className="w-8 h-8" />
-                            </button>
-
-                            {/* Nav Buttons (Visible) */}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handlePrevFocus(); }}
-                                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 p-4 rounded-full text-white hover:bg-white/10 transition-colors z-40 hidden md:block"
-                            >
-                                <ChevronLeft className="w-8 h-8" />
-                            </button>
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleNextFocus(); }}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 p-4 rounded-full text-white hover:bg-white/10 transition-colors z-40 hidden md:block"
-                            >
-                                <ChevronRight className="w-8 h-8" />
-                            </button>
-
-                            <motion.div
-                                className="relative w-full h-full max-w-[90vw] max-h-[85vh]"
-                                onClick={(e) => e.stopPropagation()} // Click image shouldn't close
-                                key={focusedImage.id}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                <Image
-                                    src={focusedImage.url}
-                                    alt="Focus"
-                                    fill
-                                    className="object-contain" // "Lightroom" fit
-                                    quality={100}
-                                    priority
-                                />
-                                {/* Text Stamp Visibility Check: Bottom Center Overlay */}
-                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 px-3 py-1 rounded text-[10px] text-zinc-400 font-mono tracking-widest backdrop-blur-md">
-                                    {orders[focusedImage.order_id]?.pet_name?.toUpperCase() || 'NO NAME'}
-                                </div>
-                            </motion.div>
-                        </div>
-
-                        {/* 2. Bottom Filmstrip & Controls */}
-                        <div className="h-auto md:h-28 bg-zinc-900 border-t border-zinc-800 flex flex-col md:flex-row divide-y md:divide-y-0 divide-zinc-800">
-
-                            {/* Left: Filmstrip */}
-                            <div className="flex-1 overflow-x-auto p-4 flex gap-2 items-center justify-start md:justify-center bg-black/20">
-                                {groups.find(g => g.orderId === focusedImage.order_id)?.allImages.filter(i => i.status !== 'archived').map((img, idx) => (
-                                    <button
-                                        key={img.id}
-                                        onClick={(e) => { e.stopPropagation(); openFocus(img); }}
-                                        className={`relative w-20 h-20 shrink-0 rounded overflow-hidden border-2 transition-all ${focusedImage.id === img.id ? 'scale-110 z-10 shadow-xl' : 'opacity-80 hover:opacity-100'
-                                            } ${img.status === 'approved' ? 'border-4 border-green-500' :
-                                                img.status === 'rejected' ? 'border-4 border-red-500 opacity-60' :
-                                                    focusedImage.id === img.id ? 'border-brand-blue' : 'border-zinc-700'
-                                            }`}
-                                    >
-                                        <Image src={img.url} alt="thumb" fill className="object-cover" />
-
-                                        {/* Status Overlays */}
-                                        {img.status === 'approved' && (
-                                            <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
-                                                <div className="bg-green-500 text-white rounded-full p-1 shadow-sm">
-                                                    <Check className="w-3 h-3" strokeWidth={4} />
-                                                </div>
-                                            </div>
-                                        )}
-                                        {img.status === 'rejected' && (
-                                            <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center">
-                                                <div className="bg-red-500 text-white rounded-full p-1 shadow-sm">
-                                                    <XContext className="w-3 h-3" strokeWidth={4} />
-                                                </div>
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Right: Sidebar / Controls */}
-                            <div className="w-full md:w-96 bg-zinc-900 p-4 flex flex-col gap-3 justify-center shrink-0 z-20">
-                                {/* Order Info Row */}
-                                <div className="flex justify-between items-center text-sm">
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-white font-bold">{orders[focusedImage.order_id]?.customer_name || 'Unknown'}</span>
-                                            {/* Count Badge */}
-                                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${(groups.find(g => g.orderId === focusedImage.order_id)?.allImages.filter(i => i.status === 'approved').length || 0) === 10
-                                                ? 'bg-green-900 text-green-300'
-                                                : 'bg-zinc-800 text-zinc-400'
-                                                }`}>
-                                                {groups.find(g => g.orderId === focusedImage.order_id)?.allImages.filter(i => i.status === 'approved').length || 0}/10 Appr
-                                            </span>
-                                        </div>
-                                        <span className="text-zinc-500 text-xs">Pet: {orders[focusedImage.order_id]?.pet_name}</span>
-                                    </div>
-                                    <a
-                                        href={`/portal/${focusedImage.order_id}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="flex items-center gap-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-brand-blue px-2 py-1.5 rounded transition-colors"
-                                    >
-                                        <Eye className="w-3 h-3" /> Portal
-                                    </a>
-                                </div>
-
-                                {/* Action Buttons */}
-                                {focusedImage.status === 'rejected' ? (
-                                    <div className="flex flex-col gap-2">
-                                        <RegenControls
-                                            imageId={focusedImage.id}
-                                            onRegenSuccess={() => { setFocusedImage(null); window.location.reload(); }} // Simple reload or callback
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <button
-                                            onClick={() => { onReject(focusedImage.id); handleNextFocus(); }}
-                                            className="btn-secondary justify-center text-xs bg-zinc-800 border-zinc-700 text-zinc-300 hover:text-red-400 hover:border-red-900/50 hover:bg-red-950/20"
-                                        >
-                                            <XContext className="w-4 h-4 mr-2" /> REJECT (←)
-                                        </button>
-                                        <button
-                                            onClick={() => { onApprove([focusedImage.id]); handleNextFocus(); }}
-                                            className="btn-primary justify-center text-xs"
-                                        >
-                                            <Check className="w-4 h-4 mr-2" /> APPROVE (→)
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Focus Modal (Pro Dark Room) */}
+            <ProReviewModal
+                focusedImage={focusedImage}
+                onClose={() => setFocusedImage(null)}
+                currentGroupImages={groups.find(g => g.orderId === focusedImage?.order_id)?.allImages || []}
+                order={focusedImage ? orders[focusedImage.order_id] : undefined}
+                onApprove={onApprove}
+                onReject={onReject}
+                onNext={handleNextFocus}
+                onPrev={handlePrevFocus}
+                onSelect={openFocus}
+            />
 
         </div>
     );
 }
 
-// Sub-component for Regeneration (Colocated for now)
-function RegenControls({ imageId, onRegenSuccess }: { imageId: string, onRegenSuccess: () => void }) {
-    const [mode, setMode] = useState<'quick' | 'refine' | null>(null);
-    const [feedback, setFeedback] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    const handleRun = async () => {
-        setLoading(true);
-        try {
-            const res = await regenerateSingleImage(imageId, feedback);
-            if (res.success) {
-                alert("Regeneration Started!");
-                onRegenSuccess();
-            } else {
-                alert("Error: " + res.error);
-            }
-        } catch (e: any) {
-            alert("Error: " + e.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (mode === 'refine') {
-        return (
-            <div className="flex flex-col gap-2 bg-zinc-800 p-2 rounded">
-                <input
-                    className="bg-black/50 text-white text-xs p-2 rounded border border-zinc-700 w-full mb-1"
-                    placeholder="e.g. Make eyes symmetrical"
-                    value={feedback}
-                    onChange={e => setFeedback(e.target.value)}
-                    autoFocus
-                />
-                <div className="flex gap-2">
-                    <button onClick={() => setMode(null)} className="flex-1 text-xs text-zinc-400 py-1 hover:text-white">Cancel</button>
-                    <button
-                        onClick={handleRun}
-                        disabled={loading}
-                        className="flex-1 bg-brand-blue text-white text-xs py-1 rounded font-bold hover:bg-brand-blue/90"
-                    >
-                        {loading ? 'Running...' : 'Run Regen'}
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="grid grid-cols-2 gap-2">
-            <button
-                onClick={handleRun}
-                disabled={loading}
-                className="bg-zinc-800 text-white text-xs py-2 rounded hover:bg-zinc-700 flex items-center justify-center gap-2"
-            >
-                {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                Quick Rerun
-            </button>
-            <button
-                onClick={() => setMode('refine')}
-                className="bg-zinc-800 text-brand-blue text-xs py-2 rounded hover:bg-zinc-700 border border-brand-blue/30 flex items-center justify-center gap-2"
-            >
-                <PenTool className="w-3 h-3" />
-                Refine...
-            </button>
-        </div>
-    );
-}
+// RegenControls moved to ProReviewModal

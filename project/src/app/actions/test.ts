@@ -37,7 +37,7 @@ export async function simulateShopifyOrder() {
             pet_breed: "Labrador",
             pet_details: "Friendly gaze",
             pet_image_url: publicUrl,
-            product_type: "Digital + Print",
+            product_type: "Royalty",
             status: "pending",
             payment_status: "paid",
             order_number: `SIM-${timestamp}`
@@ -64,7 +64,8 @@ export async function simulateShopifyOrder() {
             order.product_type,
             order.pet_breed,
             order.pet_details,
-            false // REAL AI
+            false, // REAL AI
+            order.pet_name
         );
 
         console.log("✨ Simulation Complete! Images are generating.");

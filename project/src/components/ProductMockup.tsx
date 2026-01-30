@@ -11,7 +11,10 @@ export interface ProductTemplate {
     name: string;
     overlay_url: string;
     aspect_ratio: 'square' | 'portrait';
-    purchase_link: string;
+    purchase_link?: string; // Legacy / Optional
+    price?: number; // Price in cents
+    stripe_price_id?: string;
+    is_active?: boolean;
 }
 
 interface ProductMockupProps {

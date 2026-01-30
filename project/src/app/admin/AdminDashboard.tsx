@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { formatDate } from '@/lib/utils';
-import { Eye, Loader2, Search, Filter, Camera, CheckCircle, AlertTriangle, CloudLightning } from 'lucide-react';
-import ReviewGrid from './ReviewGrid';
-import PugLoader from '@/components/PugLoader';
+import { useRouter } from 'next/navigation';
+import { Eye, Search, Filter, Camera, CheckCircle, AlertTriangle, CloudLightning, Plus } from 'lucide-react';
+import CommandCenterModal from './_components/CommandCenterModal';
+import ManualOrderModal from './_components/ManualOrderModal';
 import type { Order, Image as ImageType } from '@/lib/supabase/client';
 import Image from 'next/image';
 
@@ -14,11 +14,13 @@ interface AdminDashboardProps {
 }
 
 export default function AdminDashboard({ initialOrders, images }: AdminDashboardProps) {
-    const [orders, setOrders] = useState<Order[]>(initialOrders);
+    const router = useRouter();
     const [reviewOrder, setReviewOrder] = useState<Order | null>(null);
+    const [showCreateModal, setShowCreateModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const filteredOrders = orders.filter(o =>
+    // Use initialOrders directly to allow router.refresh() to update data
+    const filteredOrders = initialOrders.filter(o =>
         o.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         o.pet_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         o.id.includes(searchTerm)
@@ -26,22 +28,23 @@ export default function AdminDashboard({ initialOrders, images }: AdminDashboard
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'completed': return <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Delivered</span>;
-            case 'pending_review': return <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Review Needed</span>;
-            case 'generating': return <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><CloudLightning className="w-3 h-3" /> Generating</span>;
-            case 'revising': return <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><Camera className="w-3 h-3" /> Revising</span>;
-            default: return <span className="bg-zinc-100 text-zinc-500 text-xs px-2 py-1 rounded-full font-bold">{status}</span>;
+            case 'completed':
+                return <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Delivered</span>;
+            case 'pending': // DB "pending" = "Review Needed" in our flow
+            case 'pending_review':
+                return <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Review Needed</span>;
+            case 'generating':
+                return <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><CloudLightning className="w-3 h-3" /> Generating</span>;
+            case 'revising':
+                return <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1"><Camera className="w-3 h-3" /> Revising</span>;
+            default:
+                return <span className="bg-zinc-100 text-zinc-500 text-xs px-2 py-1 rounded-full font-bold">{status}</span>;
         }
     };
 
     // If Review Mode
     if (reviewOrder) {
-        // REMOVED BLOCKING LOADER per user request.
-        // We now always fall through to the main ReviewGrid view.
-
-
         const orderImages = images.filter(i => i.order_id === reviewOrder.id);
-        const ordersMap = { [reviewOrder.id]: reviewOrder };
 
         return (
             <div className="fixed inset-0 z-[100] bg-white overflow-y-auto">
@@ -57,39 +60,29 @@ export default function AdminDashboard({ initialOrders, images }: AdminDashboard
                         <h2 className="font-bold">Reviewing: {reviewOrder.pet_name}</h2>
                     </div>
                 </div>
-                <ReviewGrid
+                <CommandCenterModal
+                    order={reviewOrder}
                     images={orderImages}
-                    orders={ordersMap}
-                    loading={['generating', 'pending', 'processing_print'].includes(reviewOrder.status)}
+                    onClose={() => {
+                        setReviewOrder(null);
+                        router.refresh();
+                    }}
                     onApprove={async (ids) => {
-                        // Optimistic Update could go here, but for now just call action
-                        // We iterate because ReviewGrid passes array
-                        // But for now, let's just loop locally or assume bulk action
                         try {
-                            // Dynamically import to avoid server-client boundary issues if simple import fails
-                            // But we can just use the imported actions if we marked them 'use server'
-                            // Need to Import them at top of file first!
-                            const { approveImage, rejectAndRegenerate } = await import('@/app/actions/image-approval');
-
-                            for (const id of ids) {
-                                await approveImage(id);
-                            }
-                            // Trigger router refresh to update UI
-                            window.location.reload(); // Simple brute force for now to ensure data consistency
-                        } catch (e) {
-                            alert("Error approving: " + e);
-                        }
+                            const { approveImage } = await import('@/app/actions/image-approval');
+                            await Promise.all(ids.map(id => approveImage(id)));
+                            // Soft refresh to update data without reloading page/resetting state
+                            router.refresh();
+                        } catch (e) { alert("Error: " + e); }
                     }}
                     onReject={async (id) => {
                         try {
                             const { rejectAndRegenerate } = await import('@/app/actions/image-approval');
-                            if (confirm("Reject and Regenerate this image?")) {
+                            if (confirm("Reject and Regenerate?")) {
                                 await rejectAndRegenerate(id);
-                                window.location.reload();
+                                router.refresh();
                             }
-                        } catch (e) {
-                            alert("Error rejecting: " + e);
-                        }
+                        } catch (e) { alert("Error: " + e); }
                     }}
                 />
             </div>
@@ -106,6 +99,12 @@ export default function AdminDashboard({ initialOrders, images }: AdminDashboard
                 </div>
 
                 <div className="flex gap-2">
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="bg-brand-blue text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-brand-blue/90 transition-colors flex items-center gap-2"
+                    >
+                        <Plus className="w-4 h-4" /> Create Order
+                    </button>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                         <input
@@ -115,11 +114,16 @@ export default function AdminDashboard({ initialOrders, images }: AdminDashboard
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <button className="p-2 border border-zinc-200 rounded-lg hover:bg-zinc-50">
-                        <Filter className="w-4 h-4 text-zinc-500" />
-                    </button>
                 </div>
             </div>
+
+            {/* Create Modal */}
+            {showCreateModal && (
+                <ManualOrderModal onClose={() => {
+                    setShowCreateModal(false);
+                    router.refresh();
+                }} />
+            )}
 
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm border border-zinc-200 overflow-hidden">
@@ -128,12 +132,19 @@ export default function AdminDashboard({ initialOrders, images }: AdminDashboard
                         <tr>
                             <th className="px-6 py-4">Order ID / Date</th>
                             <th className="px-6 py-4">Customer & Pet</th>
-                            <th className="px-6 py-4">Theme</th>
+                            <th className="px-6 py-4">Product</th>
                             <th className="px-6 py-4">Status</th>
                             <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200">
+                        {filteredOrders.length === 0 && (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-12 text-center text-zinc-400 italic">
+                                    No orders found.
+                                </td>
+                            </tr>
+                        )}
                         {filteredOrders.map(order => (
                             <tr
                                 key={order.id}
@@ -161,7 +172,8 @@ export default function AdminDashboard({ initialOrders, images }: AdminDashboard
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className="inline-block px-2 py-1 bg-zinc-100 rounded text-xs text-zinc-600 font-medium">
-                                        {order.theme_id || 'Random'}
+                                        {/* @ts-ignore - product_type might be typed strictly but we just want to display it */}
+                                        {order.product_type}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4">
@@ -169,14 +181,15 @@ export default function AdminDashboard({ initialOrders, images }: AdminDashboard
                                 </td>
                                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                     {/* Action Logic */}
-                                    {order.status === 'pending_review' || order.status === 'revising' || order.status === 'generating' ? (
+                                    {/* We cast order.status to string to avoid strict type checks for UI logic if needed, but it should be fine now if we use valid types */}
+                                    {['pending', 'revising', 'processing_print'].includes(order.status) ? (
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setReviewOrder(order); }}
                                             className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:scale-105 transition-transform flex items-center gap-2 ml-auto"
                                         >
                                             Review Images
                                         </button>
-                                    ) : order.status === 'completed' ? (
+                                    ) : order.status === 'fulfilled' || order.status === 'ready' ? (
                                         <div className="flex gap-2 justify-end">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); setReviewOrder(order); }}
@@ -199,7 +212,7 @@ export default function AdminDashboard({ initialOrders, images }: AdminDashboard
                                             onClick={(e) => { e.stopPropagation(); setReviewOrder(order); }}
                                             className="text-zinc-400 text-xs italic hover:text-zinc-900"
                                         >
-                                            Processing...
+                                            {order.status}
                                         </button>
                                     )}
                                 </td>

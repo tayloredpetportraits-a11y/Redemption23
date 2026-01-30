@@ -18,7 +18,8 @@ interface UpsellProduct {
 }
 
 interface UpsellFunnelProps {
-  portraitUrl: string;
+  images: { url: string; id: string }[]; // New prop
+  portraitUrl?: string; // KEEP for backward compat if needed, but we'll use images[0] default
   petName: string;
   currentProduct: string | null;
   onAddToCart: (productId: string) => void;
@@ -147,6 +148,7 @@ const UPSELL_PRODUCTS: Record<string, UpsellProduct[]> = {
 };
 
 export default function UpsellFunnel({
+  images,
   portraitUrl,
   petName,
   currentProduct,
@@ -155,6 +157,11 @@ export default function UpsellFunnel({
 }: UpsellFunnelProps) {
   const [currentOfferIndex, setCurrentOfferIndex] = useState(0);
   const [showOffer, setShowOffer] = useState(true);
+
+  // Default to first image, either from array or legacy prop
+  const [selectedImage, setSelectedImage] = useState<string>(
+    (images && images.length > 0) ? images[0].url : (portraitUrl || '')
+  );
 
   const productType = currentProduct || 'digital-only';
   const offers = UPSELL_PRODUCTS[productType] || UPSELL_PRODUCTS['digital-only'];
@@ -269,35 +276,57 @@ export default function UpsellFunnel({
                 <div className="aspect-square bg-zinc-50 rounded-2xl overflow-hidden relative border border-zinc-200">
                   <MockupGenerator
                     productType={currentOffer.mockupType}
-                    imageUrl={portraitUrl}
+                    imageUrl={selectedImage}
                     className="absolute inset-0"
                   />
                 </div>
 
                 <div className="text-center text-sm text-zinc-500">
-                  Your selected portrait of {petName}
+                  Select your favorite portrait to preview
                 </div>
+
+                {/* THUMBNAIL SELECTOR */}
+                {images && images.length > 1 && (
+                  <div className="flex justify-center gap-2 flex-wrap">
+                    {images.map((img) => (
+                      <button
+                        key={img.id}
+                        onClick={() => setSelectedImage(img.url)}
+                        className={`relative w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${selectedImage === img.url
+                          ? 'border-brand-blue ring-2 ring-brand-blue/20 scale-110'
+                          : 'border-zinc-200 opacity-60 hover:opacity-100'
+                          }`}
+                      >
+                        <img
+                          src={img.url}
+                          alt="Variant"
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-zinc-100">
-              <button
-                onClick={handleAccept}
-                className="btn-primary rounded-xl flex-1 py-4 text-lg shadow-xl"
-              >
-                Yes! Add to My Order (${currentOffer.price})
-              </button>
-              <button
-                onClick={handleDecline}
-                className="btn-secondary rounded-xl px-8 py-4"
-              >
-                {currentOfferIndex < offers.length - 1 ? 'Show Me Other Options' : 'No Thanks'}
-              </button>
-            </div>
+              <div className="flex flex-col sm:flex-row gap-4 pt-4 border-t border-zinc-100">
+                <button
+                  onClick={handleAccept}
+                  className="btn-primary rounded-xl flex-1 py-4 text-lg shadow-xl"
+                >
+                  Yes! Add to My Order (${currentOffer.price})
+                </button>
+                <button
+                  onClick={handleDecline}
+                  className="btn-secondary rounded-xl px-8 py-4"
+                >
+                  {currentOfferIndex < offers.length - 1 ? 'Show Me Other Options' : 'No Thanks'}
+                </button>
+              </div>
 
-            <div className="text-center text-sm text-zinc-400">
-              <Clock className="w-4 h-4 inline mr-1" />
-              This offer expires when you leave this page
+              <div className="text-center text-sm text-zinc-400">
+                <Clock className="w-4 h-4 inline mr-1" />
+                This offer expires when you leave this page
+              </div>
             </div>
           </div>
         </motion.div>

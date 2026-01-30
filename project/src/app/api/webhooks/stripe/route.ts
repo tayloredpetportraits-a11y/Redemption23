@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        if (session.metadata?.productType === 'bonus_theme') {
+        if (session.metadata?.type === 'bonus_unlock' || session.metadata?.productType === 'bonus_theme') {
           const orderId = session.metadata.orderId;
 
           const { error } = await supabase

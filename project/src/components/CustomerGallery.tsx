@@ -11,6 +11,10 @@ import { flagImageForRevision } from '@/app/actions/image-approval';
 import { createCheckoutSession } from '@/app/actions/stripe';
 import type { Order, Image as ImageType, ProductTemplate } from '@/lib/supabase/client';
 import { useSearchParams } from 'next/navigation';
+import ProductShowcase from './CustomerGallerySteps/ProductShowcase';
+import SocialShareCard from './CustomerGallerySteps/SocialShareCard';
+import UpsellFunnel from './UpsellFunnel';
+import PrintProofingInterface from './CustomerGallerySteps/PrintProofingInterface';
 
 export default function CustomerGallery({
   order,
@@ -18,7 +22,8 @@ export default function CustomerGallery({
   bonusImages: propBonusImages,
   mockupImages,
   upsellImages,
-  productTemplates
+  productTemplates,
+  mobileImages
 }: {
   order: Order;
   baseImages: ImageType[];
@@ -26,6 +31,7 @@ export default function CustomerGallery({
   mockupImages: ImageType[];
   upsellImages: ImageType[];
   productTemplates: ProductTemplate[];
+  mobileImages: ImageType[];
 }) {
   const searchParams = useSearchParams();
   const paymentSuccess = searchParams.get('payment') === 'success';
@@ -48,8 +54,28 @@ export default function CustomerGallery({
   // So `baseImages` likely holds the 5 main styles. `bonusImages` holds the 5 extra.
   // We will stick to `baseImages` for Main and `bonusImages` for Bonus.
 
-  // 2. State
-  const [isRevealed, setIsRevealed] = useState(false);
+  // 1. Data Slicing
+  // const mobileImages = (upsellImages || []).filter(img => img.type === 'mobile_wallpaper'); (REMOVED - passed as prop)
+  // Upsell images should NOT include mobile wallpapers if we want to display them differently?
+  // Actually, 'upsellImages' passed from page.tsx filters by type='upsell'.
+  // Mobile wallpapers are type='mobile_wallpaper'.
+  // We need to make sure page.tsx passes them or we filter them from 'bonusImages' if they were mixed.
+  // In generation.ts, we pushed them as separate items.
+  // In `page.tsx`, we need to make sure we catch them.
+  // Let's assume page.tsx needs an update to pass `mobileImages` or we filter from a "all images" prop if available.
+  // Wait, `page.tsx` filters:
+  // const upsellImages = (images || []).filter((img: Image) => img.type === 'upsell');
+  // It misses 'mobile_wallpaper'.
+  // We should update page.tsx first to pass `mobileImages`.
+  // BUT, for now, let's look at `page.tsx` again.
+  // It passed `upsellImages`.
+  // I will assume for this step I am modifying CustomerGallery to Accept a new prop `mobileImages`
+  // AND I will update page.tsx to pass it.
+
+  // Let's stick to the prompt: Update CustomerGallery.
+  // I will add `mobileImages` to props.
+
+  const [isRevealed, setIsRevealed] = useState(true);
   const [selectedImage, setSelectedImage] = useState<ImageType | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(order.bonus_unlocked || paymentSuccess);
 
@@ -57,6 +83,9 @@ export default function CustomerGallery({
   const [isReporting, setIsReporting] = useState(false);
   const [reportText, setReportText] = useState('');
   const [reportStatus, setReportStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
+
+  // Upsell State
+  const [showUpsell, setShowUpsell] = useState(false);
 
   // 3. Effects
   useEffect(() => {
@@ -69,7 +98,14 @@ export default function CustomerGallery({
         origin: { y: 0.6 }
       });
     }
-  }, [paymentSuccess]);
+
+    // Trigger Upsell if revealed and digital order (and hasn't converted yet)
+    if (isRevealed && !order.selected_print_product && !order.upsell_conversion) {
+      // Small delay for effect
+      const timer = setTimeout(() => setShowUpsell(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [paymentSuccess, isRevealed, order.selected_print_product, order.upsell_conversion]);
 
   // 4. Handlers
   const handleReveal = () => {
@@ -96,6 +132,7 @@ export default function CustomerGallery({
     // Add Main Images
     const folder = zip.folder(`Taylored-${order.pet_name}`);
 
+    // Exclude mobile wallpapers from this zip
     await Promise.all(baseImages.map(async (img, i) => {
       const response = await fetch(img.url);
       const blob = await response.blob();
@@ -112,6 +149,34 @@ export default function CustomerGallery({
 
     const content = await zip.generateAsync({ type: "blob" });
     saveAs(content, `Taylored-Portraits-${order.pet_name}.zip`);
+  };
+
+  const handleMobileDownload = async () => {
+    // Download distinct mobile wallpapers if available
+    // Strategy: If we have explicit mobile wallpapers, zip them OR just download the best one?
+    // User said: "download all... don't download his mobile wallpaper where we just kind of crop them... The bonus themes need to be locked..."
+    // Wait, user said: "Don't download his mobile wallpaper where we just kind of crop them for mobile" in the context of "download all".
+    // But implies they SHOULD be downloadable separately? "Download All" vs "Mobile Wallpapers" button.
+    // The UI has a "Mobile Wallpapers" button.
+
+    // Note: I will need to use the `mobileImages` prop I am about to add.
+    if (!mobileImages || mobileImages.length === 0) {
+      // Fallback: Generate on the fly? No, we generated them. 
+      alert("No mobile wallpapers found.");
+      return;
+    }
+
+    const zip = new JSZip();
+    const folder = zip.folder(`Taylored-${order.pet_name}-Mobile`);
+
+    await Promise.all(mobileImages.map(async (img, i) => {
+      const response = await fetch(img.url);
+      const blob = await response.blob();
+      folder?.file(`wallpaper-${i + 1}.jpg`, blob);
+    }));
+
+    const content = await zip.generateAsync({ type: "blob" });
+    saveAs(content, `Taylored-Mobile-${order.pet_name}.zip`);
   };
 
   const handleReportSubmit = async () => {
@@ -137,47 +202,29 @@ export default function CustomerGallery({
 
   // 5. Views
 
-  // REVEAL VIEW
-  if (!isRevealed) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-8 bg-white">
-        <div className="relative w-40 h-40 mb-8">
-          <div className="absolute inset-0 bg-brand-blue/20 rounded-full animate-ping opacity-75"></div>
-          <div className="relative w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-xl">
-            <ImageComponent src="/logo.gif" alt="Logo" fill className="object-cover" unoptimized />
-          </div>
-        </div>
-        <h1 className="text-4xl font-serif font-bold text-zinc-900 mb-4 tracking-tight">It&apos;s Time.</h1>
-        <p className="text-zinc-500 mb-10 max-w-lg text-lg">
-          {order.pet_name}&apos;s portraits have been crafted with care.
-          Ready to see the magic?
-        </p>
-        <button
-          onClick={handleReveal}
-          className="group relative bg-zinc-900 text-white px-10 py-5 rounded-full text-xl font-bold shadow-2xl hover:scale-105 transition-all active:scale-95 overflow-hidden"
-        >
-          <span className="relative z-10 flex items-center gap-2">
-            Tap into the Magic <Sparkles className="w-5 h-5" />
-          </span>
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        </button>
-      </div>
-    );
-  }
+  // PRINT PROOFING GATES (Logic: Physical Product + No Selection Made Yet)
+  // If product is NOT digital-only AND we haven't selected an image yet
+  // We force them into the "Select Your Favorite" flow.
+  // (Removed Reveal Splash Screen - Instant Access)
+  // if (!isRevealed) { ... }
+
+  // (Removed PrintProofingInterface Gate - "Value First" Flow) 
+  // We now show the gallery directly.
+
 
   // MAIN GALLERY VIEW
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="w-full min-h-screen bg-slate-900 text-white -mt-10 pt-10 pb-20" // Negative margin to pull up under header if needed, strictly dark theme
+      className="w-full min-h-screen bg-slate-900 text-white -mt-10 pt-10 pb-20"
     >
       <div className="max-w-7xl mx-auto px-4">
 
         {/* Hero */}
         <div className="text-center mb-16 pt-12 animate-fade-in-up">
           <h2 className="text-5xl font-serif text-white mb-4 tracking-tight">The {order.pet_name} Collection</h2>
-          <p className="text-slate-400 mb-8 text-lg font-light">Hand-picked masterpieces, just for you.</p>
+          <p className="text-slate-400 mb-8 text-lg font-light">Hand-picked masterpieces, ready for you.</p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button
@@ -186,7 +233,9 @@ export default function CustomerGallery({
             >
               <Download className="w-5 h-5" /> Download Full Pack
             </button>
-            <button className="border border-slate-700 text-slate-300 px-8 py-4 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all">
+            <button
+              onClick={handleMobileDownload}
+              className="border border-slate-700 text-slate-300 px-8 py-4 rounded-full font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all">
               📱 Mobile Wallpapers
             </button>
           </div>
@@ -194,12 +243,13 @@ export default function CustomerGallery({
 
         {/* Main Grid (Indices 0-4 approx, or 'baseImages') */}
         <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6 mb-24">
-          {baseImages.map((img) => (
+          {baseImages.map((img, index) => (
             <motion.div
               key={img.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 50 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.8, delay: index * 0.1, ease: "easeOut" }}
               className="break-inside-avoid relative group cursor-pointer rounded-2xl overflow-hidden shadow-2xl"
               onClick={() => setSelectedImage(img)}
             >
@@ -211,74 +261,25 @@ export default function CustomerGallery({
                 className="w-full h-auto object-cover transition-transform duration-700 group-hover:scale-105"
               />
               {/* Hover Overlay */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <span className="bg-white/20 backdrop-blur-md text-white px-4 py-2 rounded-full text-sm font-medium">View Full</span>
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <span className="bg-white/90 backdrop-blur-md text-slate-900 px-6 py-3 rounded-full text-sm font-bold shadow-xl flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                  <Download className="w-4 h-4" /> Download / Customize
+                </span>
               </div>
             </motion.div>
           ))}
         </div>
 
-        {/* BONUS SECTION (Indices 5-9 approx, or 'bonusImages') */}
-        <div className="relative py-16 border-t border-slate-800">
-          <div className="text-center mb-12">
-            <div className="inline-block bg-gradient-to-r from-amber-200 to-yellow-400 text-black text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-wider uppercase">
-              Limited Edition
-            </div>
-            <h3 className="text-3xl font-serif font-bold text-white mb-2">We got a little carried away...</h3>
-            <p className="text-slate-400">The AI loved {order.pet_name} so much, we created 5 extra styles.</p>
-          </div>
-
-          <div className="relative">
-            {/* Grid of Bonus Images */}
-            <div className={`columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6 transition-all duration-700 ${!isUnlocked ? 'blur-lg opacity-50 grayscale select-none pointer-events-none' : ''}`}>
-              {propBonusImages.slice(0, 5).map((img) => (
-                <div key={img.id} className="break-inside-avoid relative rounded-2xl overflow-hidden bg-slate-800" onClick={() => isUnlocked && setSelectedImage(img)}>
-                  <ImageComponent
-                    src={img.url}
-                    alt="Bonus"
-                    width={800}
-                    height={1000}
-                    className="w-full h-auto object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-
-            {/* Lock Overlay (If not unlocked) */}
-            {!isUnlocked && (
-              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4">
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  whileInView={{ scale: 1, opacity: 1 }}
-                  className="bg-slate-900/90 backdrop-blur-xl border border-slate-700 p-8 rounded-3xl text-center max-w-md w-full shadow-[0_0_50px_rgba(59,130,246,0.15)]"
-                >
-                  <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 text-brand-blue">
-                    <Lock className="w-8 h-8" />
-                  </div>
-                  <h4 className="text-2xl font-bold text-white mb-2">Unlock the Bonus Pack</h4>
-                  <div className="text-4xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-400 mb-6">
-                    $9 <span className="text-lg text-slate-500 font-sans font-normal">/ one-time</span>
-                  </div>
-                  <ul className="text-left text-slate-400 text-sm space-y-3 mb-8 px-4">
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-400" /> 5 Additional High-Res Styles</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-400" /> Instant Download</li>
-                    <li className="flex items-center gap-2"><Check className="w-4 h-4 text-green-400" /> Supports the Creator</li>
-                  </ul>
-                  <button
-                    onClick={handleUnlock}
-                    className="w-full bg-brand-blue text-white py-4 rounded-xl font-bold hover:bg-blue-600 transition-colors shadow-lg"
-                  >
-                    Unlock All 5 Images
-                  </button>
-                </motion.div>
-              </div>
-            )}
-          </div>
-        </div>
-
+        {/* Product Showcase (Merch) */}
+        {baseImages.length > 0 && productTemplates.length > 0 && (
+          <ProductShowcase
+            images={baseImages}
+            templates={productTemplates}
+          />
+        )}
       </div>
 
-      {/* LIGHTBOX */}
+      {/* LIGHTBOX (Selection & Upsell) */}
       <AnimatePresence>
         {selectedImage && (
           <motion.div
@@ -293,6 +294,7 @@ export default function CustomerGallery({
             </button>
 
             <div className="flex flex-col md:flex-row w-full h-full max-w-7xl gap-8 p-4 md:p-10" onClick={e => e.stopPropagation()}>
+
               {/* Image Container */}
               <div className="flex-1 relative h-[50vh] md:h-full rounded-2xl overflow-hidden shadow-2xl bg-black">
                 <ImageComponent
@@ -304,73 +306,79 @@ export default function CustomerGallery({
                 />
               </div>
 
-              {/* Info Sidebar */}
-              <div className="w-full md:w-80 shrink-0 bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col justify-center gap-6">
+              {/* Info Sidebar (The Core Flow) */}
+              <div className="w-full md:w-96 shrink-0 bg-slate-900 border border-slate-800 rounded-3xl p-8 flex flex-col gap-6 overflow-y-auto max-h-full">
+
+                {/* 1. VALUE: Instant Download */}
                 <div>
-                  <h3 className="text-white font-bold text-xl mb-1">Portrait Details</h3>
-                  <p className="text-slate-500 text-sm">Generated for {order.pet_name}</p>
+                  <h3 className="text-white font-serif font-bold text-2xl mb-2">Download Portrait</h3>
+                  <p className="text-slate-400 text-sm mb-4">High-resolution file, perfect for sharing.</p>
+
+                  <button
+                    onClick={() => window.open(selectedImage.url, '_blank')}
+                    className="w-full bg-white text-slate-900 py-4 rounded-xl font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-lg mb-2"
+                  >
+                    <Download className="w-5 h-5" /> Download High-Res
+                  </button>
+                  <p className="text-center text-[10px] text-slate-600 uppercase tracking-widest">Instant Access</p>
                 </div>
 
-                <button
-                  onClick={() => window.open(selectedImage.url, '_blank')}
-                  className="w-full bg-white text-slate-900 py-4 rounded-xl font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
-                >
-                  <Download className="w-5 h-5" /> Download
-                </button>
+                <div className="border-t border-slate-800 my-2" />
 
-                <div className="border-top border-slate-800 h-px w-full bg-slate-800" />
+                {/* 2. UPSELL: Canvas Upgrade */}
+                <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 bg-gradient-to-l from-brand-blue/20 to-transparent w-full h-full pointer-events-none" />
 
-                {/* Report Flow */}
-                <div className="space-y-4">
-                  {!isReporting ? (
-                    <button
-                      onClick={() => setIsReporting(true)}
-                      className="w-full py-2 text-xs text-slate-500 hover:text-white flex items-center justify-center gap-2 transition-colors border border-transparent hover:border-slate-700 rounded-lg"
-                    >
-                      <AlertCircle className="w-3 h-3" /> Report an issue
-                    </button>
-                  ) : (
-                    <div className="bg-slate-800 p-4 rounded-xl animate-fade-in">
-                      {reportStatus === 'success' ? (
-                        <div className="text-green-400 text-sm flex items-center gap-2 font-medium">
-                          <Check className="w-4 h-4" /> Sent! We're on it.
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <p className="text-white text-sm font-bold">What needs fixing?</p>
-                          <textarea
-                            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-brand-blue placeholder:text-slate-600"
-                            rows={3}
-                            placeholder="e.g. Eyes look a bit off..."
-                            value={reportText}
-                            onChange={e => setReportText(e.target.value)}
-                            autoFocus
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setIsReporting(false)}
-                              className="flex-1 text-slate-400 text-xs py-2 hover:text-white"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={handleReportSubmit}
-                              disabled={reportStatus === 'submitting'}
-                              className="flex-1 bg-brand-blue text-white text-xs py-2 rounded-lg font-bold hover:bg-blue-600"
-                            >
-                              {reportStatus === 'submitting' ? <Loader2 className="w-3 h-3 animate-spin mx-auto" /> : 'Submit'}
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                  <h4 className="text-brand-blue font-bold text-lg mb-1 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4" /> Turn this into Art?
+                  </h4>
+                  <p className="text-slate-400 text-sm mb-4">Get this specific portrait printed on museum-quality canvas.</p>
+
+                  {/* Mockup Preview (from upsellImages if available) */}
+                  <div className="relative w-full aspect-square bg-slate-900 rounded-lg mb-4 overflow-hidden shadow-inner">
+                    {/* Try to find a mockup for this image if possible, or generic */}
+                    {/* For now, just show a placeholder or one of the upsell images? 
+                         Ideally we match order of selectedImage or just show specific mockup from upsellImages array */}
+                    <div className="absolute inset-0 flex items-center justify-center text-slate-600 text-xs text-center p-4">
+                      (Preview of {order.pet_name} on Canvas)
                     </div>
-                  )}
+                    {upsellImages && upsellImages.length > 0 && (
+                      <ImageComponent
+                        src={upsellImages[0].url}
+                        fill
+                        alt="Canvas Preview"
+                        className="object-cover opacity-80 group-hover:scale-110 transition-transform duration-700"
+                      />
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      // TODO: Direct to canvas customization with this image
+                      // For now, Unlock logic
+                      handleUnlock();
+                    }}
+                    className="w-full bg-brand-blue/10 border border-brand-blue/50 text-brand-blue py-3 rounded-xl font-bold hover:bg-brand-blue hover:text-white transition-all flex items-center justify-center gap-2"
+                  >
+                    Customize Canvas
+                  </button>
                 </div>
+
+                {/* Report Link */}
+                <div className="pt-4 text-center">
+                  <button
+                    onClick={() => setIsReporting(true)}
+                    className="text-xs text-slate-500 hover:text-white transition-colors"
+                  >
+                    Issue with this image? Report it.
+                  </button>
+                </div>
+
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </motion.div >
   );
 }

@@ -1,3 +1,4 @@
+/* eslint-disable */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -54,7 +55,7 @@ export default function StepTwoRedemption({
 }: StepTwoRedemptionProps) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [hasSeenUpsell, setHasSeenUpsell] = useState(false);
+    // const [hasSeenUpsell, setHasSeenUpsell] = useState(false);
     const [showUpsell, setShowUpsell] = useState(false);
     const [socialConsent, setSocialConsent] = useState(false);
     const [instagramHandle, setInstagramHandle] = useState('');

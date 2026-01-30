@@ -38,28 +38,36 @@ export default function DownloadActionBar({ images, petName }: DownloadActionBar
 
         try {
             const zip = new JSZip();
-            const folder = zip.folder(`${petName}-portraits`);
 
-            // Fetch and add images
-            // In a real app, we might check naturalWidth/Height here if we preload, 
-            // but fetching blobs is needed for Zip anyway.
+            const fetchBlob = async (url: string) => {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`Failed to fetch ${url}`);
+                return res.blob();
+            };
 
             const promises = images.map(async (img, index) => {
                 try {
-                    const response = await fetch(img.url);
-                    const blob = await response.blob();
-
-                    // Basic Check for "Wallpaper" (Vertical)
-                    // If we want to be fancy, we create an ImageBitmap to check size, 
-                    // but that might be slow. 
-                    // Let's just add ALL for now to ensure they get their art.
-
                     const ext = img.url.split('.').pop()?.split('?')[0] || 'png';
-                    const filename = `${petName.toLowerCase().replace(/\s+/g, '-')}-${index + 1}.${ext}`;
+                    const filenameBase = `${petName.toLowerCase().replace(/\s+/g, '-')}-${index + 1}`;
 
-                    folder?.file(filename, blob);
-                } catch (e) {
-                    console.error("Failed to load image for zip", img.url);
+                    if (filter === 'all') {
+                        // 1. Add Original to "High-Res-Originals" folder
+                        const originalBlob = await fetchBlob(img.url);
+                        zip.folder('High-Res-Originals')?.file(`${filenameBase}-original.${ext}`, originalBlob);
+
+                        // 2. Add Wallpaper to "Phone-Wallpapers" folder
+                        const wallpaperUrl = `/api/images/wallpaper?url=${encodeURIComponent(img.url)}`;
+                        const wallpaperBlob = await fetchBlob(wallpaperUrl);
+                        zip.folder('Phone-Wallpapers')?.file(`${filenameBase}-wallpaper.jpg`, wallpaperBlob);
+                    } else {
+                        // "Wallpapers" mode: Just download wallpapers flat or in folder
+                        // User likely just wants the files. Flat is usually better for specific download.
+                        const wallpaperUrl = `/api/images/wallpaper?url=${encodeURIComponent(img.url)}`;
+                        const wallpaperBlob = await fetchBlob(wallpaperUrl);
+                        zip.file(`${filenameBase}-wallpaper.jpg`, wallpaperBlob);
+                    }
+                } catch (err) {
+                    console.error("Failed to load image for zip", img.url, err);
                 }
             });
 
@@ -71,7 +79,7 @@ export default function DownloadActionBar({ images, petName }: DownloadActionBar
             const url = window.URL.createObjectURL(content);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${petName}-${filter === 'all' ? 'collection' : 'wallpapers'}.zip`;
+            a.download = `${petName}-${filter === 'all' ? 'complete-pack' : 'wallpapers'}.zip`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);

@@ -72,6 +72,7 @@ export default async function Page({ params }: { params: { id: string } }) {
                 mockupImages={mockupImages}
                 upsellImages={upsellImages}
                 productTemplates={productTemplates || []} // Pass down new templates
+                mobileImages={(images || []).filter((img: Image) => img.type === 'mobile_wallpaper')}
             />
         </div>
     );

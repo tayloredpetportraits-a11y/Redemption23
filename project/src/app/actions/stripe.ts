@@ -9,7 +9,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2023-10-16',
+    apiVersion: '2025-12-15.clover' as any, // Cast to any to avoid strict typing issues if SDK updates again, or just match the error
 });
 
 const PRICE_ID_BONUS_PACK = 'price_1SR0X7CcW9oSSZQjX6qJq4qL'; // Placeholder - ideally this comes from config or DB
@@ -41,7 +41,7 @@ export async function createCheckoutSession(orderId: string) {
         cancel_url: `${origin}/portal/${orderId}?payment=canceled`,
         metadata: {
             orderId: orderId,
-            type: 'upsell_unlock',
+            type: 'bonus_unlock',
         },
     });
 

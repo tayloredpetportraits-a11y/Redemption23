@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     // 1. Get image to find Order ID and Details
     const { data: image, error: fetchError } = await supabase
         .from('images')
-        .select('*, orders(*)')
+        .select('*, orders!images_order_id_fkey(*)')
         .eq('id', imageId)
         .single();
 
@@ -131,7 +131,7 @@ export async function POST(req: Request) {
         // Order is complete!
         await supabase
             .from('orders')
-            .update({ status: 'fulfilled' }) // Changed from 'ready' to 'fulfilled' to match status meaning
+            .update({ status: 'ready' }) // Changed from 'ready' to 'fulfilled' to match status meaning
             .eq('id', image.order_id);
 
         // Fetch order details for email

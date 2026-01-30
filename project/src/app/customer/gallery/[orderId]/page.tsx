@@ -50,7 +50,11 @@ export default async function Page({ params }: { params: { orderId: string } }) 
     // Mockups: type=upsell or type=mockup but NOT bonus (Admin generated or Manual mockups)
     const mockupImages = (images || []).filter((img: Image) => (img.type === 'upsell' || img.type === 'mockup') && !img.is_bonus);
 
-    console.log(`[Gallery Debug] Base: ${baseImages.length}, Bonus: ${bonusImages.length}, Mockups: ${mockupImages.length}`);
+    // 4. Fetch Product Templates
+    const { data: templates } = await supabase
+        .from('product_templates')
+        .select('*')
+        .eq('is_active', true);
 
     return (
         <CustomerGallery
@@ -58,6 +62,8 @@ export default async function Page({ params }: { params: { orderId: string } }) 
             baseImages={baseImages}
             bonusImages={bonusImages}
             mockupImages={mockupImages}
+            upsellImages={[]} // Not used heavily but required by type
+            productTemplates={templates || []}
         />
     );
 }

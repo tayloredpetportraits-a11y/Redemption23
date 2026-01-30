@@ -1,1 +1,0 @@
-self.__REACT_LOADABLE_MANIFEST="{\"app/admin/AdminDashboard.tsx -> @/app/actions/image-approval\":{\"id\":\"app/admin/AdminDashboard.tsx -> @/app/actions/image-approval\",\"files\":[\"static/chunks/_app-pages-browser_src_app_actions_image-approval_ts.js\"]}}"

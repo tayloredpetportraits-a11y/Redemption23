@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Trash2, Plus, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
 import type { ProductTemplate } from '@/components/ProductMockup';
+import { deleteProduct } from './actions';
 
 export default function ProductManagerPage() {
     const supabase = createClient();
@@ -14,7 +15,7 @@ export default function ProductManagerPage() {
 
     // Form State
     const [newName, setNewName] = useState('');
-    const [newLink, setNewLink] = useState('');
+    const [newPrice, setNewPrice] = useState(''); // User enters dollars (e.g. 25.50)
     const [newAspectRatio, setNewAspectRatio] = useState<'square' | 'portrait'>('square');
     const [file, setFile] = useState<File | null>(null);
 
@@ -38,23 +39,20 @@ export default function ProductManagerPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to archive this template?')) return;
+        if (!confirm('Are you sure you want to delete this template?')) return;
 
-        const { error } = await supabase
-            .from('product_templates')
-            .update({ is_active: false })
-            .eq('id', id);
-
-        if (error) {
-            alert('Failed to delete');
-        } else {
+        try {
+            await deleteProduct(id);
+            // Optimistic update
             setProducts(products.filter(p => p.id !== id));
+        } catch (err) {
+            alert('Failed to delete product');
         }
     };
 
     const handleUploadAndCreate = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!file || !newName || !newLink) return;
+        if (!file || !newName || !newPrice) return;
 
         setUploading(true);
         try {
@@ -74,13 +72,17 @@ export default function ProductManagerPage() {
                 .getPublicUrl(filename);
 
             // 3. Insert Database Record
+            // Convert Price to Cents
+            const priceCents = Math.round(parseFloat(newPrice) * 100);
+
             const { data: insertData, error: insertError } = await supabase
                 .from('product_templates')
                 .insert({
                     name: newName,
                     overlay_url: publicUrl,
                     aspect_ratio: newAspectRatio,
-                    purchase_link: newLink,
+                    price: priceCents,
+                    // purchase_link: newLink, // Removed
                     is_active: true
                 })
                 .select()
@@ -90,7 +92,7 @@ export default function ProductManagerPage() {
 
             // 4. Reset & Refresh
             setNewName('');
-            setNewLink('');
+            setNewPrice('');
             setFile(null);
             // reset file input manually if needed via ref, strictly not required for React logic reset
             const fileInput = document.getElementById('overlay-upload') as HTMLInputElement;
@@ -138,12 +140,14 @@ export default function ProductManagerPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-brand-navy mb-1">Purchase URL</label>
+                            <label className="block text-sm font-medium text-brand-navy mb-1">Price ($)</label>
                             <input
-                                type="url"
-                                placeholder="https://..."
-                                value={newLink}
-                                onChange={e => setNewLink(e.target.value)}
+                                type="number"
+                                placeholder="e.g. 49.00"
+                                step="0.01"
+                                min="0"
+                                value={newPrice}
+                                onChange={e => setNewPrice(e.target.value)}
                                 className="w-full px-4 py-2 rounded-lg border border-zinc-200 focus:ring-2 focus:ring-brand-blue/50 outline-none text-gray-900"
                                 required
                             />
@@ -235,9 +239,17 @@ export default function ProductManagerPage() {
 
                                     <div className="p-4 border-t border-gray-100">
                                         <h3 className="font-bold text-gray-900 text-lg">{product.name}</h3>
-                                        <a href={product.purchase_link} target="_blank" className="text-xs text-blue-600 truncate block hover:underline mt-1">
-                                            {product.purchase_link}
-                                        </a>
+                                        <div className="mt-1">
+                                            {product.price ? (
+                                                <span className="text-sm font-bold text-brand-blue">
+                                                    ${(product.price / 100).toFixed(2)}
+                                                </span>
+                                            ) : (
+                                                <a href={product.purchase_link} target="_blank" className="text-xs text-blue-600 truncate block hover:underline">
+                                                    External Link ↗
+                                                </a>
+                                            )}
+                                        </div>
                                         <div className="mt-3 flex gap-2">
                                             <span className="text-[10px] uppercase font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded-md border border-gray-200">
                                                 {product.aspect_ratio}

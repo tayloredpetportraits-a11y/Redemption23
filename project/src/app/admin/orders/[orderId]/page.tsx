@@ -6,7 +6,7 @@ import type { Order, Image as ImageType } from '@/lib/supabase/client';
 import { Loader2, RefreshCw, ArrowLeft, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import SwipeReviewModal from '../../_components/SwipeReviewModal';
+import ProReviewModal from '../../_components/ProReviewModal';
 import { CheckCheck, Play } from 'lucide-react';
 
 export default function OrderDetailPage({ params }: { params: { orderId: string } }) {
@@ -18,15 +18,19 @@ export default function OrderDetailPage({ params }: { params: { orderId: string 
     const [images, setImages] = useState<ImageType[]>([]);
     const [loading, setLoading] = useState(true);
     const [regenLoading, setRegenLoading] = useState<string | null>(null); // Image ID being regenerated
-    const [genMockupLoading, setGenMockupLoading] = useState<string | null>(null);
     const [regenPrompt, setRegenPrompt] = useState(''); // Global override prompt for now
-
-    // Custom Mockup State
-    const [customMockupFile, setCustomMockupFile] = useState<File | null>(null);
-    const [isCustomMockupLoading, setIsCustomMockupLoading] = useState(false);
 
     // Review State
     const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [focusedImageId, setFocusedImageId] = useState<string | null>(null);
+
+    // Helper to open review
+    const startReview = () => {
+        const nextPending = images.find(i => i.status === 'pending_review');
+        if (nextPending) setFocusedImageId(nextPending.id);
+        else if (images.length > 0) setFocusedImageId(images[0].id);
+        setIsReviewOpen(true);
+    };
 
 
     // Fetch Data
@@ -72,33 +76,6 @@ export default function OrderDetailPage({ params }: { params: { orderId: string 
             alert("Failed to regenerate: " + e);
         } finally {
             setRegenLoading(null);
-        }
-    };
-
-    const handleGenerateMockups = async (image: ImageType) => {
-        if (!order) return;
-        if (!confirm("Generate Canvas, Bear, and Tumbler mockups for this portrait? This may take ~30 seconds.")) return;
-
-        setGenMockupLoading(image.id);
-        try {
-            const res = await fetch('/api/admin/generate-mockup-batch', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    orderId: order.id,
-                    portraitId: image.id,
-                    portraitUrl: image.url
-                })
-            });
-
-            if (!res.ok) throw new Error("Generation failed");
-
-            alert("Mockups generated successfully!");
-            await fetchData();
-        } catch (e) {
-            alert("Error: " + e);
-        } finally {
-            setGenMockupLoading(null);
         }
     };
 
@@ -185,63 +162,6 @@ export default function OrderDetailPage({ params }: { params: { orderId: string 
         }
     };
 
-    const handleGenerateCustomMockup = async () => {
-        if (!customMockupFile) return alert("Please select a file first");
-
-        // Prefer approved primary image, else first primary, else first
-        const targetImage = images.find(img => img.type === 'primary' && img.status === 'approved')
-            || images.find(img => img.type === 'primary')
-            || images[0];
-
-        if (!targetImage) return alert("No portrait to apply mockup to.");
-
-        if (!confirm(`Generate custom mockup using "${customMockupFile.name}" on portrait #${targetImage.id.slice(0, 4)}?`)) return;
-
-        setIsCustomMockupLoading(true);
-        try {
-            // 1. Upload Template to Supabase (Temp)
-            const fileExt = customMockupFile.name.split('.').pop();
-            const tempPath = `temp/custom_templates/${Date.now()}.${fileExt}`;
-
-            const formData = new FormData();
-            formData.append('file', customMockupFile);
-            formData.append('path', tempPath);
-
-            // We need a way to upload from client. 
-            // Since we don't have a direct client upload function exposed easily here without import issues,
-            // let's just send it to the API as base64 or FormData if the API supports it.
-            // Actually, let's just use the API to handle the download if we pass a URL, 
-            // BUT we have a local file.
-            // Let's make the API accept a file upload or we upload it here.
-            // Simplest: Send to a new API route that handles the upload and generation.
-
-            const uploadFormData = new FormData();
-            uploadFormData.append('template', customMockupFile);
-            uploadFormData.append('orderId', orderId);
-            uploadFormData.append('portraitId', targetImage.id);
-            uploadFormData.append('portraitUrl', targetImage.url);
-
-            const res = await fetch('/api/admin/generate-mockup-custom', {
-                method: 'POST',
-                body: uploadFormData
-            });
-
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || "Generation failed");
-            }
-
-            alert("Custom mockup generated!");
-            setCustomMockupFile(null);
-            await fetchData();
-
-        } catch (e) {
-            alert("Error: " + e);
-        } finally {
-            setIsCustomMockupLoading(false);
-        }
-    };
-
     if (loading) return <div className="p-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
     if (!order) return <div className="p-12 text-center">Order not found</div>;
 
@@ -262,7 +182,7 @@ export default function OrderDetailPage({ params }: { params: { orderId: string 
                     {images.some(i => i.status === 'pending_review') && (
                         <>
                             <button
-                                onClick={() => setIsReviewOpen(true)}
+                                onClick={startReview}
                                 className="flex items-center gap-2 px-4 py-2 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-white font-bold rounded-lg transition-all animate-pulse"
                             >
                                 <Play className="w-4 h-4 text-purple-400" />
@@ -379,9 +299,7 @@ export default function OrderDetailPage({ params }: { params: { orderId: string 
                                     key={img.id}
                                     img={img}
                                     regenLoading={regenLoading}
-                                    genMockupLoading={genMockupLoading}
                                     onRegenerate={handleRegenerate}
-                                    onGenerateMockups={handleGenerateMockups}
                                 />
                             ))}
                         </div>
@@ -403,101 +321,61 @@ export default function OrderDetailPage({ params }: { params: { orderId: string 
                                     key={img.id}
                                     img={img}
                                     regenLoading={regenLoading}
-                                    genMockupLoading={genMockupLoading}
                                     onRegenerate={handleRegenerate}
-                                    onGenerateMockups={handleGenerateMockups}
                                 />
                             ))}
                         </div>
                     </section>
 
-                    {/* 3. MOCKUPS */}
-                    <section className="space-y-4">
-                        <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                            <h3 className="font-bold text-zinc-100 uppercase tracking-widest text-sm flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                                Product Mockups
-                            </h3>
-                            <span className="text-xs text-zinc-500">{images.filter(i => i.type === 'mockup').length} images</span>
-                        </div>
 
-                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                            {/* Custom Mockup Generator Card */}
-                            <div className="bg-zinc-900 border border-dashed border-zinc-700 rounded-lg p-6 flex flex-col items-center justify-center text-center gap-4 hover:bg-zinc-800/50 transition-colors">
-                                <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
-                                </div>
-                                <div>
-                                    <h4 className="text-sm font-medium text-zinc-300">New Custom Mockup</h4>
-                                    <p className="text-xs text-zinc-500 mt-1">Upload a blank product image</p>
-                                </div>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => setCustomMockupFile(e.target.files?.[0] || null)}
-                                    className="hidden"
-                                    id="custom-mockup-upload"
-                                />
-                                <div className="flex flex-col gap-2 w-full">
-                                    <label
-                                        htmlFor="custom-mockup-upload"
-                                        className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold rounded cursor-pointer w-full"
-                                    >
-                                        {customMockupFile ? customMockupFile.name.slice(0, 20) + '...' : 'Select Template'}
-                                    </label>
-                                    {customMockupFile && (
-                                        <button
-                                            onClick={handleGenerateCustomMockup}
-                                            disabled={isCustomMockupLoading}
-                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded w-full flex items-center justify-center gap-2"
-                                        >
-                                            {isCustomMockupLoading && <Loader2 className="w-3 h-3 animate-spin" />}
-                                            Generate
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Existing Mockups */}
-                            {images.filter(i => i.type === 'mockup').map((img) => (
-                                <ImageCard
-                                    key={img.id}
-                                    img={img}
-                                    regenLoading={regenLoading}
-                                    genMockupLoading={genMockupLoading}
-                                    onRegenerate={handleRegenerate}
-                                    onGenerateMockups={handleGenerateMockups}
-                                    isMockup
-                                />
-                            ))}
-                        </div>
-                    </section>
                 </div>
             </div>
-            {/* Swipe Modal */}
-            <SwipeReviewModal
-                isOpen={isReviewOpen}
+            {/* Pro Review Modal */}
+            <ProReviewModal
+                focusedImage={isReviewOpen ? images.find(i => i.id === focusedImageId) || images.find(i => i.status === 'pending_review') || images[0] : null}
                 onClose={() => setIsReviewOpen(false)}
-                images={images}
-                onReview={handleReviewImage}
-                onComplete={() => {
-                    if (confirm("All images reviewed! Send 'Portraits Ready' email now?")) {
-                        handleSendReadyEmail();
-                    }
+                currentGroupImages={images}
+                order={order}
+                onApprove={async (ids) => {
+                    // Optimistic
+                    setImages(prev => prev.map(img => ids.includes(img.id) ? { ...img, status: 'approved' } : img));
+                    try {
+                        for (const id of ids) {
+                            await fetch('/api/admin/review-queue', {
+                                method: 'POST',
+                                body: JSON.stringify({ imageId: id, status: 'approved' })
+                            });
+                        }
+                    } catch (e) { alert("Error approving: " + e); }
+
+                    // Auto-Advance
+                    const idx = images.findIndex(i => i.id === focusedImageId);
+                    if (idx < images.length - 1) setFocusedImageId(images[idx + 1].id);
                 }}
+                onReject={async (id) => {
+                    handleReviewImage(id, 'rejected');
+                    const idx = images.findIndex(i => i.id === focusedImageId);
+                    if (idx < images.length - 1) setFocusedImageId(images[idx + 1].id);
+                }}
+                onNext={() => {
+                    const idx = images.findIndex(i => i.id === focusedImageId);
+                    if (idx < images.length - 1) setFocusedImageId(images[idx + 1].id);
+                }}
+                onPrev={() => {
+                    const idx = images.findIndex(i => i.id === focusedImageId);
+                    if (idx > 0) setFocusedImageId(images[idx - 1].id);
+                }}
+                onSelect={(img) => setFocusedImageId(img.id)}
             />
         </div>
     );
 }
 
 // Extracted Component for cleaner code
-function ImageCard({ img, regenLoading, genMockupLoading, onRegenerate, onGenerateMockups, isMockup }: {
+function ImageCard({ img, regenLoading, onRegenerate }: {
     img: ImageType,
     regenLoading: string | null,
-    genMockupLoading: string | null,
     onRegenerate: (id: string) => void,
-    onGenerateMockups: (img: ImageType) => void,
-    isMockup?: boolean
 }) {
     return (
         <div className="relative group rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900">
@@ -518,34 +396,14 @@ function ImageCard({ img, regenLoading, genMockupLoading, onRegenerate, onGenera
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 gap-2">
 
                     {/* Only show Regenerate for non-mockups, or maybe allow re-doing mockups later */}
-                    {!isMockup && (
-                        <button
-                            disabled={!!regenLoading || !!genMockupLoading}
-                            onClick={() => onRegenerate(img.id)}
-                            className="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded flex items-center justify-center gap-2"
-                        >
-                            <RefreshCw className={`w-3 h-3 ${regenLoading === img.id ? 'animate-spin' : ''}`} />
-                            Regenerate
-                        </button>
-                    )}
-
-                    {/* Approve (Only for non-mockups/non-approved) - Simplified for this view, assuming auto-approve mostly */}
-
-                    {/* Generate Mockups Button (Approved Primary Only) */}
-                    {!isMockup && img.type === 'primary' && img.status === 'approved' && (
-                        <button
-                            disabled={!!genMockupLoading}
-                            onClick={() => onGenerateMockups(img)}
-                            className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded flex items-center justify-center gap-2"
-                        >
-                            {genMockupLoading === img.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>
-                            )}
-                            Gen Mockups
-                        </button>
-                    )}
+                    <button
+                        disabled={!!regenLoading}
+                        onClick={() => onRegenerate(img.id)}
+                        className="w-full py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded flex items-center justify-center gap-2"
+                    >
+                        <RefreshCw className={`w-3 h-3 ${regenLoading === img.id ? 'animate-spin' : ''}`} />
+                        Regenerate
+                    </button>
 
                     {/* View Full */}
                     <a
