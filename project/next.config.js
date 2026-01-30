@@ -7,7 +7,7 @@ const nextConfig = {
         hostname: '**',
       },
     ],
-    unoptimized: true, // Force unoptimized globally for debugging if needed, though component-level is better
+    unoptimized: true,
   },
   experimental: {
     serverActions: {
@@ -19,6 +19,7 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
+  output: 'standalone',
 };
 
 module.exports = nextConfig;
