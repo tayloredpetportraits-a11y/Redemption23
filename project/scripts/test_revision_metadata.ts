@@ -39,7 +39,7 @@ async function testRevisionMetadata() {
         };
 
         console.log('📤 Writing test revision metadata...');
-        const { data: updateData, error: updateError } = await supabase
+        const { error: updateError } = await supabase
             .from('orders')
             .update({
                 revision_metadata: JSON.stringify(testMetadata),

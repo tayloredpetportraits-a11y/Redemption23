@@ -8,7 +8,7 @@ import confetti from 'canvas-confetti';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { createCheckoutSession } from '@/app/actions/stripe';
-import type { Order, Image as ImageType, ProductTemplate } from '@/lib/supabase/client';
+import type { Order, Image as ImageType } from '@/lib/supabase/client';
 import { useSearchParams } from 'next/navigation';
 import ProductMockup from './ProductMockup';
 import RevisionRequestModal from './RevisionRequestModal';
@@ -21,7 +21,6 @@ export default function CustomerGallery({
   bonusImages: propBonusImages,
   // mockupImages,
   // upsellImages,
-  productTemplates,
   mobileImages
 }: {
   order: Order;
@@ -29,7 +28,6 @@ export default function CustomerGallery({
   bonusImages: ImageType[]; // We might not need this if we slice baseImages, but let's see.
   mockupImages: ImageType[];
   upsellImages: ImageType[];
-  productTemplates: ProductTemplate[];
   mobileImages: ImageType[];
 }) {
   const searchParams = useSearchParams();

@@ -106,11 +106,20 @@ async function upscaleImage(inputBuffer: Buffer): Promise<Buffer> {
 
 // Helper to add heavy watermark
 export async function applyHeavyWatermark(inputBuffer: Buffer): Promise<Buffer> {
-    const watermarkPath = path.join(process.cwd(), 'public', 'assets', 'watermark.png');
+    // Fetch watermark from public CDN URL instead of filesystem
+    const watermarkUrl = '/assets/watermark.png';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000';
+    const fullWatermarkUrl = `${baseUrl}${watermarkUrl}`;
 
-    // Fallback if logo missing
-    if (!fs.existsSync(watermarkPath)) {
-        console.warn("Watermark logo not found, falling back to original.");
+    let watermarkBuffer: Buffer;
+    try {
+        const response = await fetch(fullWatermarkUrl);
+        if (!response.ok) throw new Error('Watermark not found');
+        watermarkBuffer = Buffer.from(await response.arrayBuffer());
+    } catch (err) {
+        console.warn("Watermark logo not found, falling back to original:", err);
         return inputBuffer;
     }
 
@@ -126,7 +135,7 @@ export async function applyHeavyWatermark(inputBuffer: Buffer): Promise<Buffer> 
 
     // 1. Resize watermark first to fit
     // Use fit: 'inside' to ensure it fits within 80% box while maintaining aspect ratio
-    const resizedWatermarkBuffer = await sharp(watermarkPath)
+    const resizedWatermarkBuffer = await sharp(watermarkBuffer)
         .resize(targetWidth, targetHeight, { fit: 'inside' })
         .png()
         .toBuffer();
@@ -279,8 +288,23 @@ export async function generateNanoSwap(templatePath: string, petBuffer: Buffer, 
 
         console.log(`[Nano] Starting Inpainting Swap...`);
 
-        // 1. Load Template
-        const templateBuffer = fs.readFileSync(templatePath);
+        // 1. Load Template - support both URLs and local paths
+        let templateBuffer: Buffer;
+        if (templatePath.startsWith('http')) {
+            const res = await fetch(templatePath);
+            if (!res.ok) throw new Error(`Failed to fetch template: ${templatePath}`);
+            templateBuffer = Buffer.from(await res.arrayBuffer());
+        } else {
+            // Convert local filesystem path to HTTP URL
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
+                ? `https://${process.env.VERCEL_URL}`
+                : 'http://localhost:3000';
+            const publicPath = templatePath.replace(/^.*\/public\//, '/');
+            const templateUrl = `${baseUrl}${publicPath}`;
+            const res = await fetch(templateUrl);
+            if (!res.ok) throw new Error(`Failed to fetch template: ${templateUrl}`);
+            templateBuffer = Buffer.from(await res.arrayBuffer());
+        }
 
         // 2. Generate Auto-Mask (The "Hole" for the new face)
         const maskBuffer = await createSubjectMask(templateBuffer);
@@ -404,45 +428,57 @@ export async function generateProductMockup(portraitSource: Buffer | string, pro
                     console.error('Failed to download remote template');
                     return null;
                 }
-            } else if (fs.existsSync(customTemplatePath)) {
-                templateBuf = fs.readFileSync(customTemplatePath);
-                const ext = path.extname(customTemplatePath).toLowerCase();
-                if (ext === '.png') templateMime = 'image/png';
-                if (ext === '.webp') templateMime = 'image/webp';
+            } else {
+                // Convert local path to HTTP URL
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
+                    ? `https://${process.env.VERCEL_URL}`
+                    : 'http://localhost:3000';
+                const publicPath = customTemplatePath.replace(/^.*\/public\//, '/');
+                const templateUrl = `${baseUrl}${publicPath}`;
+
+                try {
+                    const res = await fetch(templateUrl);
+                    if (res.ok) {
+                        templateBuf = Buffer.from(await res.arrayBuffer());
+                        const ext = path.extname(customTemplatePath).toLowerCase();
+                        if (ext === '.png') templateMime = 'image/png';
+                        if (ext === '.webp') templateMime = 'image/webp';
+                    }
+                } catch (err) {
+                    console.warn('Failed to fetch custom template:', err);
+                }
             }
         }
 
         // Fallback or Standard Logic if no custom template provided OR if we are doing standard Printify/Local
         if (!templateBuf) {
-            // OPTION A: Try Printify First (Only if NOT custom)
-            // ... [Printify logic omitted for brevity as we are focusing on internal templates now, but keeping structure]
-            // For now, let's assume we proceed to Nano Banana Local/Fallback if Printify wasn't used.
-
-            // Check for dynamic Mockup Themes first in local file system (Legacy)
+            // Fallback to standard mockup templates via HTTP
             const safeId = productType.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const themeDir = path.join(process.cwd(), 'public', 'mockup-templates', safeId);
-            let legacyPath = '';
 
-            if (fs.existsSync(themeDir)) {
-                const files = fs.readdirSync(themeDir).filter(f => /\.(jpg|png|jpeg|webp)$/i.test(f));
-                if (files.length > 0) {
-                    legacyPath = path.join(themeDir, files[0]);
+            let mockFilename = 'canvas_mockup.png';
+            if (productType.includes('bear')) mockFilename = 'bear_base.png';
+            if (productType.includes('tumbler')) mockFilename = 'tumbler_base.png';
+            if (productType.includes('mug')) mockFilename = 'mug_base.png';
+
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
+                ? `https://${process.env.VERCEL_URL}`
+                : 'http://localhost:3000';
+
+            // Try mockup-templates directory first
+            const themeUrl = `${baseUrl}/mockup-templates/${safeId}/${mockFilename}`;
+            const fallbackUrl = `${baseUrl}/assets/mockups/${mockFilename}`;
+
+            try {
+                let res = await fetch(themeUrl);
+                if (!res.ok) {
+                    res = await fetch(fallbackUrl);
                 }
-            }
-
-            if (!legacyPath) {
-                let mockFilename = 'canvas_mockup.png';
-                if (productType.includes('bear')) mockFilename = 'bear_base.png';
-                if (productType.includes('tumbler')) mockFilename = 'tumbler_base.png';
-                if (productType.includes('mug')) mockFilename = 'mug_base.png';
-
-                legacyPath = path.join(process.cwd(), 'public', 'assets', 'mockups', mockFilename);
-            }
-
-            if (fs.existsSync(legacyPath)) {
-                templateBuf = fs.readFileSync(legacyPath);
-                const ext = path.extname(legacyPath).toLowerCase();
-                if (ext === '.png') templateMime = 'image/png';
+                if (res.ok) {
+                    templateBuf = Buffer.from(await res.arrayBuffer());
+                    if (mockFilename.endsWith('.png')) templateMime = 'image/png';
+                }
+            } catch (err) {
+                console.error('Failed to fetch mockup template:', err);
             }
         }
 
@@ -721,7 +757,7 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
                                 order_id: orderId,
                                 url: mobileUrl,
                                 storage_path: mobileStoragePath,
-                                type: 'mobile_wallpaper',
+                                type: 'upsell', // Fixed: must be 'primary' or 'upsell' per DB constraint
                                 display_order: 1000 + i, // Push to end
                                 theme_name: `Mobile: ${theme.name}`,
                                 is_bonus: true, // Treated as bonus/extra
@@ -732,7 +768,7 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
                                 order_id: orderId,
                                 url: mobileUrl,
                                 storage_path: mobileStoragePath,
-                                type: 'mobile_wallpaper',
+                                type: 'upsell', // Fixed: must be 'primary' or 'upsell' per DB constraint
                                 display_order: 1000 + i,
                                 theme_name: `Mobile: ${theme.name}`,
                                 is_bonus: true,
@@ -791,7 +827,8 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
             const bestImgPath = await downloadToTemp(bestImage.url);
             const bestImgBuffer = fs.readFileSync(bestImgPath);
 
-            const mockupTypes = ['canvas-11x14', 'tumbler', 'bear'];
+            // Simplified to canvas-only upsell per user request for MVP
+            const mockupTypes = ['canvas-11x14'];
 
             for (const mType of mockupTypes) {
                 // Skip if the user actually bought this specific physical item? 
@@ -825,20 +862,22 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
         }
     }
 
-    // 4. Save to DB (Legacy bulk insert removed in favor of incremental)
-    // if (generatedImages.length > 0) ...
+    // 4. Update order status to 'ready' after all images are generated
+    // This allows customers to immediately access their portraits in the portal
+    await supabase.from('orders').update({ status: 'ready' }).eq('id', orderId);
 
+    // Send notification if autoApprove is enabled
     if (autoApprove) {
-        await supabase.from('orders').update({ status: 'fulfilled' }).eq('id', orderId);
-
         // Fetch email/name for notification
         const { data: orderData } = await supabase.from('orders').select('customer_email, customer_name').eq('id', orderId).single();
         if (orderData) {
             await sendCustomerNotification(orderData.customer_email, orderData.customer_name, orderId, 'ready');
         }
     }
+
     console.log(`Saved ${generatedImages.length} images.`);
     console.log(`Generated ${generatedImages.length} images incrementally.`);
+    console.log(`✅ Order status updated to 'ready' - Customer portal is now accessible!`);
 }
 
 export async function generateStandardMockups(portraitBuffer: Buffer, orderId: string, portraitImageId: string, productType: string = '') {

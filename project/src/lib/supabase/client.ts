@@ -78,6 +78,7 @@ export type ProductTemplate = {
   is_active: boolean;
   created_at: string;
   price_id?: string;
+  price?: number; // Price in cents
   mask_url?: string | null;
   warp_config?: {
     tl: { x: number; y: number };

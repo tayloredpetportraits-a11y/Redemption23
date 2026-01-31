@@ -203,12 +203,22 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
     }, 300);
   };
 
-  const handleRevisionSubmit = async (notes: string) => {
+  const handleRevisionSubmit = async (selectedImageIds: string[], notes: string, referencePhotos?: File[]) => {
     try {
+      const formData = new FormData();
+      formData.append('revision_notes', notes);
+      formData.append('revision_status', 'requested');
+      formData.append('revision_metadata', JSON.stringify({ selectedImageIds }));
+
+      if (referencePhotos) {
+        referencePhotos.forEach((file, index) => {
+          formData.append(`referencePhoto_${index}`, file);
+        });
+      }
+
       await fetch(`/api/orders/${order.id}/revision`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ revision_notes: notes, revision_status: 'requested' }),
+        body: formData,
       });
       setShowRevisionModal(false);
       alert('Revision request submitted! Our team will review it shortly.');
@@ -569,6 +579,8 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
           isOpen={showRevisionModal}
           onClose={() => setShowRevisionModal(false)}
           onSubmit={handleRevisionSubmit}
+          portraits={primaryImages}
+          petName={order.pet_name || 'your pet'}
         />
       </div>
     </div>

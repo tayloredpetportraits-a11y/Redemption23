@@ -64,7 +64,7 @@ async function applyMigration() {
 
         // Step 2: Verify the column exists
         console.log('\nStep 2: Verifying column exists...');
-        const { data: testData, error: testError } = await supabase
+        const { error: testError } = await supabase
             .from('orders')
             .select('id, revision_metadata')
             .limit(1);

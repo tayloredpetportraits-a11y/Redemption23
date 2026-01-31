@@ -48,12 +48,6 @@ export default async function Page({ params }: { params: Promise<{ orderId: stri
     const upsellImages = (images || []).filter((img: Image) => img.type === 'upsell');
     const mobileImages = (images || []).filter((img: Image) => img.type === 'mobile_wallpaper');
 
-    // 4. Fetch Product Templates
-    const { data: templates } = await supabase
-        .from('product_templates')
-        .select('*')
-        .eq('is_active', true);
-
     return (
         <CustomerGallery
             order={order}
@@ -61,7 +55,6 @@ export default async function Page({ params }: { params: Promise<{ orderId: stri
             bonusImages={bonusImages}
             mockupImages={mockupImages}
             upsellImages={upsellImages}
-            productTemplates={templates || []}
             mobileImages={mobileImages}
         />
     );

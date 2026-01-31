@@ -3,9 +3,8 @@
  * Simulates real Shopify orders going through the full AI generation pipeline
  */
 
+
 import https from 'https';
-import fs from 'fs';
-import path from 'path';
 
 // Test order configurations
 const TEST_ORDERS = [

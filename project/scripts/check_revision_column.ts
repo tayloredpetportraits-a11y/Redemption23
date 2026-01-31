@@ -15,7 +15,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 async function addColumn() {
     try {
         // Test if column exists by trying to select it
-        const { data: testSelect, error: selectError } = await supabase
+        const { error: selectError } = await supabase
             .from('orders')
             .select('id, revision_metadata')
             .limit(1);

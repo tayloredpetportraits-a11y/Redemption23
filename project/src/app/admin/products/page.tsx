@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, type ProductTemplate } from '@/lib/supabase/client';
 import { Trash2, Plus, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
-import type { ProductTemplate } from '@/components/ProductMockup';
 import { deleteProduct } from './actions';
 
 export default function ProductManagerPage() {

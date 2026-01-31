@@ -34,15 +34,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         return <div className="p-8 text-center">Failed to load gallery.</div>;
     }
 
-    // 3. Fetch Product Templates (NEW)
-    const { data: productTemplates, error: prodError } = await supabase
-        .from('product_templates')
-        .select('*')
-        .eq('is_active', true);
-
-    if (prodError) {
-        console.error('Failed to fetch products:', prodError);
-    }
 
     // 4. Split Images
     const baseImages = (images || []).filter((img: Image) => img.type === 'primary' && !img.is_bonus);
@@ -71,7 +62,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 bonusImages={bonusImages}
                 mockupImages={mockupImages}
                 upsellImages={upsellImages}
-                productTemplates={productTemplates || []} // Pass down new templates
                 mobileImages={(images || []).filter((img: Image) => img.type === 'mobile_wallpaper')}
             />
         </div>
