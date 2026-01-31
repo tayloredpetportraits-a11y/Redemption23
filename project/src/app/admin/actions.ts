@@ -32,7 +32,7 @@ export async function createManualOrder(formData: FormData) {
     }
 
     // 2. Create Order in DB
-    const status = (mockups.length > 0) ? (isPaid ? 'ready' : 'fulfilled') : 'pending';
+    // const status = (mockups.length > 0) ? (isPaid ? 'ready' : 'fulfilled') : 'pending';
     // If mockups provided, skip generation and go to review/ready. 
     // If paid -> ready (bypass payment). If not paid -> fulfilled (needs payment).
     // Actually, normally:

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { Plus, Trash2, Power, Search, Upload, X, ImageIcon, Check } from 'lucide-react';
+import { Plus, Trash2, Power, Search, Upload, X, ImageIcon } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { createClient } from '@/lib/supabase/client';
 import { getThemes, saveThemeToDB, deleteTheme, toggleThemeStatus, type Theme } from '@/app/actions/themes';

@@ -1,94 +1,143 @@
 
+import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'path';
-import fs from 'fs';
-import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 // Load env vars
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-// Import the function to test
-import { generateImagesForOrder } from '../src/lib/ai/generation';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-async function runTest() {
-    console.log("🛁 Starting Shopify 'Spa Day' Simulation...");
+async function simulateSpaDayWebhook() {
+    console.log('🛁 Starting Spa Day + Canvas Order E2E Simulation...');
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    // 1. Unique Order ID
+    const uniqueId = Math.floor(Math.random() * 100000000) + 800000000;
+    const email = `spaday.canvas.${uniqueId}@example.com`;
+    const orderName = `#SPA-${uniqueId}`;
 
-    // 1. Prepared Data (Simulating Shopify Order Data)
-    const petName = "Winston";
-    const breed = "English Bulldog";
-    const details = "Wrinkly, white and brown, looking forward, very relaxed";
-    const customerEmail = "spaday_lover@example.com";
-    const customerName = "Spa Enthusiast";
+    // Real Dog Photo from random Internet source (or local if we could upload, but webhook needs URL)
+    // Using a reliable Dog CEO image
+    const dogPhotoUrl = 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80';
 
-    // Use the real test image
-    const dogPath = path.join(process.cwd(), 'public', 'assets', 'test_bulldog.jpg');
-    if (!fs.existsSync(dogPath)) {
-        console.error("❌ Test dog image not found at " + dogPath);
-        process.exit(1);
-    }
-    const dogBuffer = fs.readFileSync(dogPath);
+    const payload = {
+        id: uniqueId,
+        name: orderName,
+        email: email,
+        customer: {
+            first_name: "Spa",
+            last_name: "Lover",
+            email: email
+        },
+        line_items: [
+            {
+                id: uniqueId + 1,
+                // "Spa Day" triggers theme. "Canvas" triggers print product logic?
+                name: 'Custom Pet Portrait - Spa Day Theme - 16x20 Canvas',
+                quantity: 1,
+                properties: [
+                    { name: 'Pet Name', value: 'Winston' },
+                    { name: 'Breed', value: 'English Bulldog' },
+                    { name: 'Pet Photo', value: dogPhotoUrl },
+                    { name: 'Notes', value: 'He loves relaxing' },
+                    { name: '_Case', value: 'Canvas' } // Often hidden properties indicate type
+                ]
+            }
+        ]
+    };
 
-    // 2. Upload to Storage (Simulating Shopify CDN / Copying to our storage)
-    const timestamp = Date.now();
-    const storagePath = `uploads/pets/spaday_winston_${timestamp}.jpg`;
+    const body = JSON.stringify(payload);
 
-    console.log(`📸 Uploading customer photo to: ${storagePath}...`);
-    const { error: uploadError } = await supabase.storage.from('primary-images').upload(storagePath, dogBuffer, {
-        contentType: 'image/jpeg',
-        upsert: true
-    });
+    // 2. HMAC
+    const secret = process.env.SHOPIFY_WEBHOOK_SECRET || 'dummy_secret_for_dev';
+    const hmac = crypto
+        .createHmac('sha256', secret)
+        .update(body, 'utf8')
+        .digest('base64');
 
-    if (uploadError) {
-        console.error("❌ Upload failed:", uploadError);
-        process.exit(1);
-    }
+    console.log(`📦 Sending Payload... Order: ${orderName}`);
+    console.log(`   Photo: ${dogPhotoUrl}`);
 
-    const { data: { publicUrl } } = supabase.storage.from('primary-images').getPublicUrl(storagePath);
-    console.log(`🔗 Image Ready: ${publicUrl}`);
-
-    // 3. Create Order (Simulating Webhook Insertion)
-    console.log("📦 Creating Order Record...");
-    const { data: order, error: orderError } = await supabase.from('orders').insert({
-        customer_email: customerEmail,
-        customer_name: customerName,
-        product_type: 'spaday', // THEME SELECTED
-        pet_image_url: publicUrl,
-        status: 'pending',
-        pet_breed: breed,
-        pet_name: petName,
-        pet_details: details,
-        payment_status: 'paid'
-    }).select().single();
-
-    if (orderError) {
-        console.error("❌ Order creation failed:", orderError);
-        process.exit(1);
-    }
-
-    console.log(`✅ Order Created: ${order.id}`);
-    console.log(`👉 Admin Link: http://localhost:3000/admin/orders/${order.id}`);
-
-    // 4. Trigger AI Service (Simulating Webhook Trigger)
-    console.log("🎨 Triggering AI Service (Spa Day Theme)...");
     try {
-        await generateImagesForOrder(
-            order.id,
-            publicUrl,
-            'spaday', // Theme
-            breed,
-            details,
-            false, // autoApprove = false (Real flow usually requires approval)
-            petName
-        );
-        console.log("✨ Service Finished. Images await approval.");
-    } catch (e) {
-        console.error("❌ Generation failed:", e);
+        // 3. Send Webhook
+        const res = await fetch('http://localhost:3000/api/webhooks/shopify', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-shopify-topic': 'orders/create',
+                'x-shopify-hmac-sha256': hmac
+            },
+            body: body
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Webhook failed: ${res.status} ${text}`);
+        }
+
+        console.log('✅ Webhook accepted (200 OK)');
+        console.log('⏳ Waiting for Order Creation & Generation...');
+
+        // 4. Poll
+        let orderId = '';
+        const maxRetries = 120; // 4 minutes
+
+        for (let i = 0; i < maxRetries; i++) {
+            await new Promise(r => setTimeout(r, 2000));
+
+            if (!orderId) {
+                const { data: order } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('shopify_order_id', payload.id.toString())
+                    .single();
+
+                if (order) {
+                    orderId = order.id;
+                    console.log(`✅ Order Created: ${order.id}`);
+                    console.log(`   Theme Detected: ${order.product_type}`);
+                    console.log(`   Print Product: ${order.selected_print_product || 'None'}`);
+                }
+            }
+
+            if (orderId) {
+                // Check if we have Primary Images AND Upsell Mockups
+                const { data: images } = await supabase
+                    .from('images')
+                    .select('type, status, theme_name, is_bonus')
+                    .eq('order_id', orderId);
+
+                const count = images?.length || 0;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const bonus = images?.filter((img: any) => img.type === 'upsell' || img.is_bonus).length || 0;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const mobile = images?.filter((img: any) => img.type === 'mobile_wallpaper').length || 0;
+
+                // We expect 5 Primary + 5 Bonus + 1 Mobile (maybe)
+                if (count >= 10) {
+                    console.log(`✅ Generation Complete! Found ${count} images.`);
+                    console.log(`   - Bonus/Upsell: ${bonus}`);
+                    console.log(`   - Mobile: ${mobile}`);
+                    console.log('\n-----------------------------------');
+                    console.log(`ORDER_ID=${orderId}`);
+                    console.log(`MAGIC_LINK=http://localhost:3000/portal/${orderId}`);
+                    console.log('-----------------------------------\n');
+                    process.exit(0);
+                }
+                process.stdout.write('.');
+            }
+        }
+
+        console.error('\n❌ Timed out waiting for complete generation.');
+        process.exit(1);
+
+    } catch (err) {
+        console.error('❌ Error:', err);
         process.exit(1);
     }
 }
 
-runTest();
+simulateSpaDayWebhook();

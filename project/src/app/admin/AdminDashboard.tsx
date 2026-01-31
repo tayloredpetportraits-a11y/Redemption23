@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, Search, Filter, Camera, CheckCircle, AlertTriangle, CloudLightning, Plus } from 'lucide-react';
+import { Eye, Search, Camera, CheckCircle, AlertTriangle, CloudLightning, Plus } from 'lucide-react';
 import CommandCenterModal from './_components/CommandCenterModal';
 import ManualOrderModal from './_components/ManualOrderModal';
 import type { Order, Image as ImageType } from '@/lib/supabase/client';

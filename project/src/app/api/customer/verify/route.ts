@@ -1,12 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { rateLimiter } from '@/lib/rate-limiter';
+import { withCors, handleOptions } from '@/lib/cors';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-// createClient moved inside handler
 
-export async function POST(request: NextRequest) {
+export const OPTIONS = handleOptions;
+
+export const POST = withCors(async (request: NextRequest) => {
   try {
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+
+    // Rate limit: 10 requests per 10 seconds
+    const isAllowed = rateLimiter.check(ip, 10, 10000);
+
+    if (!isAllowed) {
+      return NextResponse.json(
+        { error: 'Too many verification attempts. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
     const { orderNumber, email } = await request.json();
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -46,4 +61,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

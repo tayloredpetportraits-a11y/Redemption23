@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { X, Check, RefreshCw, ChevronLeft, ChevronRight, Download, Maximize2 } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import Image from 'next/image';
 import type { Order, Image as ImageType } from '@/lib/supabase/client';
 

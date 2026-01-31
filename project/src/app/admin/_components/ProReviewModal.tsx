@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Check, X as XContext, XCircle, Eye, ChevronLeft, ChevronRight,
+    Check, X as XContext, XCircle, ChevronLeft, ChevronRight,
     Loader2, RefreshCw, PenTool
 } from 'lucide-react';
 import Image from 'next/image';
@@ -120,8 +120,8 @@ export default function ProReviewModal({
                                     key={img.id}
                                     onClick={(e) => { e.stopPropagation(); onSelect(img); }}
                                     className={`relative w-24 h-24 shrink-0 rounded-lg overflow-hidden border-2 transition-all duration-200 ${focusedImage.id === img.id
-                                            ? 'border-white scale-110 z-10 shadow-[0_0_15px_rgba(255,255,255,0.3)]'
-                                            : 'border-transparent opacity-60 hover:opacity-100'
+                                        ? 'border-white scale-110 z-10 shadow-[0_0_15px_rgba(255,255,255,0.3)]'
+                                        : 'border-transparent opacity-60 hover:opacity-100'
                                         }`}
                                 >
                                     <Image src={img.url} alt="thumb" fill className="object-cover" />

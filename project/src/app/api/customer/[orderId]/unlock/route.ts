@@ -1,10 +1,10 @@
 
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+// import { createAdminClient } from '@/lib/supabase/server';
 import { unlockBonusContent } from '@/lib/orders/unlock';
 
-export async function POST(request: Request, { params }: { params: { orderId: string } }) {
-  const { orderId } = params;
+export async function POST(_request: Request, { params }: { params: Promise<{ orderId: string }> }) {
+  const { orderId } = await params;
 
   try {
     // Call the shared unlock logic

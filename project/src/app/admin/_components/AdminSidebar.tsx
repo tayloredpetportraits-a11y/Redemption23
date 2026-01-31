@@ -9,7 +9,6 @@ import {
     Image as ImageIcon,
     LogOut,
     Layers,
-    Share2
 } from 'lucide-react';
 
 export default function AdminSidebar() {

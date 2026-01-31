@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, Palette, Images, Settings, LogOut, Image as ImageIcon } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Palette, Settings, LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect } from 'react';
 

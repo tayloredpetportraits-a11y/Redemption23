@@ -25,6 +25,6 @@ export async function deleteProduct(id: string) {
     revalidatePath('/customer/gallery/[orderId]'); // invalidates gallery cache too
 }
 
-export async function createProduct(formData: FormData) {
+export async function createProduct() {
     // We can move creation here too later, but for now let's fix delete.
 }

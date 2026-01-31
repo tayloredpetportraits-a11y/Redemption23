@@ -3,10 +3,10 @@
 
 import { useRef, useState } from 'react';
 import ImageComponent from 'next/image';
-import { Download, Share2, Instagram, Check } from 'lucide-react';
+import { Download, Instagram, Check } from 'lucide-react';
 import { toBlob } from 'html-to-image';
 import { saveAs } from 'file-saver';
-import type { Image as ImageType, Order } from '@/lib/supabase/client';
+import type { Image as ImageType } from '@/lib/supabase/client';
 import { updateSocialConsent } from '@/app/actions/orders';
 
 export default function SocialShareCard({

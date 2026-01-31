@@ -4,10 +4,10 @@ import { PrintifyService } from '@/lib/printify/service';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const { orderId } = params;
+    const { orderId } = await params;
 
     // Log intent
     console.log(`[ConfirmAPI] Confiming order ${orderId} ...`);

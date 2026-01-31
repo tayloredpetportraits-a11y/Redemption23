@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Order, Image as ImageType } from '@/lib/supabase/client';
 import { Loader2, RefreshCw, ArrowLeft, Mail } from 'lucide-react';
@@ -9,8 +9,8 @@ import Image from 'next/image';
 import ProReviewModal from '../../_components/ProReviewModal';
 import { CheckCheck, Play } from 'lucide-react';
 
-export default function OrderDetailPage({ params }: { params: { orderId: string } }) {
-    const { orderId } = params;
+export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
+    const { orderId } = use(params);
     const router = useRouter();
     const supabase = createClient();
 

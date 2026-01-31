@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { Lock, Sparkles, Share2, Check, Star } from 'lucide-react';
@@ -66,7 +66,7 @@ export default function StepThreeBonus({
 
     const handleUnlockBonus = async () => {
         // ... (existing analytics)
-        addToast('Processing $4.99 payment...', 'info');
+        addToast('Processing $15 payment...', 'info');
 
         setCheckoutLoading(true);
         logger.info('Starting bonus unlock flow', { orderId: order.id });
@@ -157,7 +157,7 @@ export default function StepThreeBonus({
                     </h2>
                     <p className="text-brand-navy/70 max-w-2xl mx-auto text-lg leading-relaxed font-light">
                         Get <strong>{bonusImages.length} additional portraits</strong> in this exclusive style.
-                        <br />Available for a limited time for just <span className="font-semibold text-brand-navy">$4.99</span>.
+                        <br />Available for a limited time for just <span className="font-semibold text-brand-navy">$15</span>.
                     </p>
                 </div>
 
@@ -169,24 +169,30 @@ export default function StepThreeBonus({
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.1 }}
-                            className="relative aspect-square rounded-2xl overflow-hidden group shadow-lg border border-brand-navy/5 bg-white"
+                            className="relative aspect-square rounded-2xl overflow-hidden group shadow-lg border border-brand-navy/5 bg-white cursor-pointer"
+                            onClick={() => !bonusUnlocked && handleUnlockBonus()}
                         >
                             <Image
                                 src={bonusUnlocked ? image.url : (image.watermarked_url || image.url)}
                                 alt="Bonus"
                                 fill
                                 className={`object-cover transition-all duration-700 ease-out 
-                                    ${!bonusUnlocked ? 'blur-[2px] grayscale-[30%] scale-105 group-hover:scale-110 group-hover:grayscale-0 group-hover:blur-0' : 'group-hover:scale-110'}
+                                    ${!bonusUnlocked ? 'blur-sm grayscale scale-105 group-hover:scale-110 group-hover:brightness-110' : 'group-hover:scale-110'}
                                 `}
                             />
                             {!bonusUnlocked && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-brand-navy/30 backdrop-blur-[3px] transition-all group-hover:bg-brand-navy/20 group-hover:backdrop-blur-[1px]">
-                                    <div className="bg-white/90 p-4 rounded-full shadow-2xl backdrop-blur-xl text-brand-navy mb-3 transform group-hover:scale-110 transition-transform">
-                                        <Lock className="w-8 h-8" />
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/30 backdrop-blur-md transition-all duration-300 group-hover:bg-white/40 border border-white/20">
+                                    <div className="bg-white/80 p-3 rounded-full shadow-lg backdrop-blur-xl text-brand-navy mb-3 transform group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 ring-1 ring-white/50">
+                                        <Lock className="w-8 h-8 opacity-80" />
                                     </div>
-                                    <span className="text-white font-bold text-shadow-sm tracking-wide opacity-90 text-sm bg-black/20 px-3 py-1 rounded-full backdrop-blur-md">
-                                        PREVIEW ONLY
+                                    <span className="text-white font-bold text-shadow-md tracking-wide text-lg drop-shadow-lg">
+                                        Unlock for $15
                                     </span>
+                                    <div className="absolute top-3 right-3">
+                                        <span className="bg-brand-blue/90 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
+                                            MOST POPULAR
+                                        </span>
+                                    </div>
                                 </div>
                             )}
                         </motion.div>
@@ -202,7 +208,7 @@ export default function StepThreeBonus({
                             className="btn-primary px-16 py-6 text-xl rounded-full shadow-lg shadow-amber-900/20 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 border-none text-white font-bold relative overflow-hidden group"
                         >
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                            {checkoutLoading ? <span className="animate-pulse">Processing...</span> : `Unlock All for $4.99`}
+                            {checkoutLoading ? <span className="animate-pulse">Processing...</span> : `Unlock All for $15`}
                         </button>
                         <div className="flex items-center gap-2 text-brand-navy/60 text-sm">
                             <div className="flex gap-0.5">

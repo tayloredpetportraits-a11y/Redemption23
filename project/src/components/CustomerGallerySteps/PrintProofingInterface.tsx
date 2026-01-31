@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Sparkles, User } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 import ImageComponent from 'next/image';
 import { MockupGenerator } from '../MockupEngine/MockupGenerator';
 import type { Image as ImageType } from '@/lib/supabase/client';

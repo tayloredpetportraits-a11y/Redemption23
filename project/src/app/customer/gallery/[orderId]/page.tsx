@@ -5,9 +5,9 @@ import type { Image } from '@/lib/supabase/client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Page({ params }: { params: { orderId: string } }) {
+export default async function Page({ params }: { params: Promise<{ orderId: string }> }) {
     const supabase = createAdminClient();
-    const { orderId } = params;
+    const { orderId } = await params;
 
     // 1. Fetch Order
     const { data: order, error: orderError } = await supabase

@@ -113,7 +113,7 @@ export default function ManualOrderModal({ onClose }: ManualOrderModalProps) {
                                     name="petPhoto"
                                     accept="image/*"
                                     className="hidden"
-                                    onChange={(e) => {
+                                    onChange={() => {
                                         // Force update to show file name could be added here
                                     }}
                                 />

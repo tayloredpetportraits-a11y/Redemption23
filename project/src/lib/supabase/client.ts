@@ -40,7 +40,16 @@ export type Order = {
   fulfillment_status: string | null;
   print_provider_order_id: string | null;
   share_count: number;
+  shelter_dog_id?: string | null;
   created_at: string;
+};
+
+export type ShelterDog = {
+  id: string;
+  name: string;
+  photo_url: string;
+  adoption_url: string | null;
+  story: string | null;
 };
 
 export type Image = {

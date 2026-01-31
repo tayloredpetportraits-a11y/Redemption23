@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
+// import { createClient } from '@supabase/supabase-js';
 
 // Inits moved inside handler
 
@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
     apiVersion: '2025-12-15.clover',
   });
 
-  const supabase = createClient(
+  /* const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  ); */
 
   if (!signature) {
     return NextResponse.json(

@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-    Check, X as XContext, Loader2, Maximize2, XCircle, Eye, RefreshCw, PenTool,
-    ChevronLeft, ChevronRight, CheckCircle, MoreHorizontal
+    Check, X as XContext, CheckCircle
 } from 'lucide-react';
+// import { regenerateSingleImage } from '@/app/actions/gen-actions';
 import Image from 'next/image';
 import type { Image as ImageType, Order } from '@/lib/supabase/client';
-import { regenerateSingleImage } from '@/app/actions/gen-actions';
+// import { regenerateSingleImage } from '@/app/actions/gen-actions';
 import PugLoader from '@/components/PugLoader';
 import ProReviewModal from './_components/ProReviewModal';
 
@@ -32,7 +32,7 @@ export default function ReviewGrid({ images, orders, onApprove, onReject, loadin
     const [groups, setGroups] = useState<OrderGroup[]>([]);
     const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
     const [focusedImage, setFocusedImage] = useState<ImageType | null>(null);
-    const [focusIndex, setFocusIndex] = useState(0);
+    const [focusIndex, _setFocusIndex] = useState(0);
 
     // Group images by Order
     useEffect(() => {

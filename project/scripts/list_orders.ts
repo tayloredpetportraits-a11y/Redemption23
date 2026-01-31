@@ -1,21 +1,45 @@
-
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-import path from 'path';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+// Load environment variables
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-async function listAll() {
-    console.log('📋 Listing ALL Orders...');
-    const { data: orders } = await supabase
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+async function listRecentOrders() {
+    console.log(`\n📋 Listing recent orders...\n`);
+
+    const { data, error } = await supabase
         .from('orders')
-        .select('id, customer_email, status, created_at')
+        .select('id, order_number, access_token, status, product_type, created_at')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(10);
 
-    orders?.forEach(o => console.log(`[${o.created_at}] ${o.id} - ${o.customer_email} (${o.status})`));
+    if (error) {
+        console.error('❌ Error fetching orders:', error);
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        console.log('No orders found.');
+        return;
+    }
+
+    console.log(`Found ${data.length} recent orders:\n`);
+    data.forEach((order, index) => {
+        console.log(`${index + 1}. Order #${order.order_number}`);
+        console.log(`   ID: ${order.id}`);
+        console.log(`   Access Token: ${order.access_token}`);
+        console.log(`   Status: ${order.status}`);
+        console.log(`   Product Type: ${order.product_type}`);
+        console.log(`   Created: ${new Date(order.created_at).toLocaleString()}`);
+        console.log(`   Portal URL: http://localhost:3000/portal/${order.access_token}`);
+        console.log('');
+    });
 }
 
-listAll();
+listRecentOrders();

@@ -58,7 +58,7 @@ export default function ProductManagerPage() {
         try {
             // 1. Upload Image
             const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-            const { data: uploadData, error: uploadError } = await supabase
+            const { error: uploadError } = await supabase
                 .storage
                 .from('mockups')
                 .upload(filename, file);

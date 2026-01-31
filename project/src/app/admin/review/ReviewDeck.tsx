@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import { Check, X, Undo, RefreshCw, Star } from 'lucide-react';
+import { Check, X, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import type { Image as ImageType } from '@/lib/supabase/client';
 import { regenerateImageAction } from './actions';
@@ -122,7 +122,7 @@ export default function ReviewDeck({ images, onApprove, onReject, loading }: Rev
             {/* Card Stack */}
             <div className="relative w-full max-w-md aspect-[3/4] flex items-center justify-center">
                 <AnimatePresence>
-                    {localImages.slice(index, index + 2).reverse().map((img, i) => {
+                    {localImages.slice(index, index + 2).reverse().map((img) => {
                         const isCurrent = img.id === currentImage.id;
                         return (
                             <Card

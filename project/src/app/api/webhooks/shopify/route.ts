@@ -9,7 +9,11 @@ import fs from 'fs';
 // Helper to download image from URL to local buffer
 async function downloadImage(url: string): Promise<Buffer | null> {
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
         if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
         return Buffer.from(await response.arrayBuffer());
     } catch (e) {
@@ -137,7 +141,8 @@ export async function POST(req: Request) {
                 sendCustomerNotification(customerEmail, customerName, order.id, 'ordered').catch(e => console.error(e));
 
                 // Trigger Generation
-                generateImagesForOrder(order.id, storageUrl, 'royalty', breed, fullDetails, false).catch(err => {
+                // Pass the product type (item.name) so generation.ts can map it to 'spaday', 'royalty', etc.
+                generateImagesForOrder(order.id, storageUrl, item.name, breed, fullDetails, false, petName).catch(err => {
                     console.error(`[Shopify] Generation failed for order ${order.id}:`, err);
                 });
             }

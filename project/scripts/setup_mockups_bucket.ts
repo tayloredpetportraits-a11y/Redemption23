@@ -40,7 +40,7 @@ async function setupMockupsBucket() {
         }
     } else {
         console.log(`⚠️  Bucket "${BUCKET_NAME}" not found. Creating...`);
-        const { data, error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
+        const { error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
             public: true,
             fileSizeLimit: 10485760, // 10MB
             allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp']

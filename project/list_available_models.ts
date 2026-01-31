@@ -1,7 +1,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
-import path from 'path';
+
 
 dotenv.config({ path: '.env.local' });
 
@@ -25,7 +25,7 @@ async function listModels() {
             const genAI = new GoogleGenerativeAI(key);
             const model = genAI.getGenerativeModel({ model: modelName });
             const result = await model.generateContent("Test connection. Reply 'OK'.");
-            const response = await result.response;
+            await result.response;
             console.log(`✅ SUCCESS! Model '${modelName}' is accessible.`);
         } catch (e: any) {
             console.log(`❌ FAILED. Model '${modelName}' error: ${e.message?.substring(0, 100)}...`);

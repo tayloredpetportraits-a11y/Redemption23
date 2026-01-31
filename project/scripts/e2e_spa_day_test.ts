@@ -81,7 +81,7 @@ async function simulateSpaDayWebhook() {
 
         // 4. Poll for Order & Generation
         let orderId = '';
-        const maxRetries = 60; // 2 minutes max (generation can take time)
+        const maxRetries = 150; // 5 minutes max (generation can take time)
 
         for (let i = 0; i < maxRetries; i++) {
             await new Promise(r => setTimeout(r, 2000));
