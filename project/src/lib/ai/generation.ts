@@ -108,9 +108,9 @@ async function upscaleImage(inputBuffer: Buffer): Promise<Buffer> {
 export async function applyHeavyWatermark(inputBuffer: Buffer): Promise<Buffer> {
     // Fetch watermark from public CDN URL instead of filesystem
     const watermarkUrl = '/assets/watermark.png';
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : 'http://localhost:3000';
+    const port = process.env.PORT || '3000';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${port}`);
     const fullWatermarkUrl = `${baseUrl}${watermarkUrl}`;
 
     let watermarkBuffer: Buffer;
@@ -294,11 +294,14 @@ export async function generateNanoSwap(templatePath: string, petBuffer: Buffer, 
             const res = await fetch(templatePath);
             if (!res.ok) throw new Error(`Failed to fetch template: ${templatePath}`);
             templateBuffer = Buffer.from(await res.arrayBuffer());
+        } else if (fs.existsSync(templatePath)) {
+            // This is a filesystem path (including temp files) - read directly
+            templateBuffer = fs.readFileSync(templatePath);
         } else {
-            // Convert local filesystem path to HTTP URL
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
-                ? `https://${process.env.VERCEL_URL}`
-                : 'http://localhost:3000';
+            // Convert public directory path to HTTP URL
+            const port = process.env.PORT || '3000';
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+                || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${port}`);
             const publicPath = templatePath.replace(/^.*\/public\//, '/');
             const templateUrl = `${baseUrl}${publicPath}`;
             const res = await fetch(templateUrl);
@@ -430,9 +433,9 @@ export async function generateProductMockup(portraitSource: Buffer | string, pro
                 }
             } else {
                 // Convert local path to HTTP URL
-                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
-                    ? `https://${process.env.VERCEL_URL}`
-                    : 'http://localhost:3000';
+                const port = process.env.PORT || '3000';
+                const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+                    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${port}`);
                 const publicPath = customTemplatePath.replace(/^.*\/public\//, '/');
                 const templateUrl = `${baseUrl}${publicPath}`;
 
@@ -460,9 +463,9 @@ export async function generateProductMockup(portraitSource: Buffer | string, pro
             if (productType.includes('tumbler')) mockFilename = 'tumbler_base.png';
             if (productType.includes('mug')) mockFilename = 'mug_base.png';
 
-            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL
-                ? `https://${process.env.VERCEL_URL}`
-                : 'http://localhost:3000';
+            const port = process.env.PORT || '3000';
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+                || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${port}`);
 
             // Try mockup-templates directory first
             const themeUrl = `${baseUrl}/mockup-templates/${safeId}/${mockFilename}`;
