@@ -14,10 +14,12 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 async function simulateWebhook() {
     console.log('🚀 Starting Golden Run Simulation (Webhook Trigger)...');
 
-    // 1. Construct Payload - #004
+    // 1. Construct Payload - #RealDog
+    const randomId = Math.floor(Math.random() * 1000000000);
+    const generatedName = `#GOLDEN-REAL-${Date.now()}`;
     const payload = {
-        id: 999111225,
-        name: '#GOLDEN-TEST-004',
+        id: randomId,
+        name: generatedName,
         email: 'captain@example.com',
         customer: {
             first_name: "Captain's",
@@ -32,7 +34,7 @@ async function simulateWebhook() {
                 properties: [
                     { name: 'Name', value: 'Captain' },
                     { name: 'Breed', value: 'Golden Retriever' },
-                    { name: 'Pet Photo', value: 'https://images.dog.ceo/breeds/retriever-golden/n02099601_100.jpg' }
+                    { name: 'Pet Photo', value: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=1600&q=80' }
                 ]
             }
         ]
@@ -77,7 +79,9 @@ async function simulateWebhook() {
             const { data: order } = await supabase
                 .from('orders')
                 .select('*')
-                .eq('shopify_order_id', payload.id.toString())
+                .eq('customer_email', 'captain@example.com')
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .single();
 
             if (order) {
@@ -111,6 +115,7 @@ async function simulateWebhook() {
             if (count && count > 0) {
                 console.log(`✅ Generation Started! Found ${count} images.`);
                 console.log('🎉 Golden Run Successful. Check Admin Dashboard.');
+                console.log(`🔗 Redemption Link: http://localhost:3000/portal/${orderId}`);
                 process.exit(0);
             }
             process.stdout.write('.');

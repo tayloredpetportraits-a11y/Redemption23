@@ -15,6 +15,14 @@ export default async function CustomerOrderPage({
   }
 
   const images = await getImagesByOrderId(orderId);
+
+  // Fetch shelter dog info if ID is present
+  /* let shelterDog = null;
+  if (order.shelter_dog_id) {
+    const { getShelterDogById } = await import('@/lib/api/shelter');
+    shelterDog = await getShelterDogById(order.shelter_dog_id);
+  } */
+
   const primaryImages = images.filter((img) => img.type === 'primary');
   const upsellImages = images.filter((img) => img.type === 'upsell');
 
@@ -23,6 +31,7 @@ export default async function CustomerOrderPage({
       order={order}
       primaryImages={primaryImages}
       upsellImages={upsellImages}
+    // shelterDog={shelterDog}
     />
   );
 }

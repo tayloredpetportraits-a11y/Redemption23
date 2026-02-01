@@ -10,9 +10,9 @@ import path from 'path';
 export const maxDuration = 300; // Allow long timeout for batch generation
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: NextRequest, { params }: { params: { imageId: string } }) {
+export async function POST(_req: NextRequest, { params }: { params: Promise<{ imageId: string }> }) {
     try {
-        const { imageId } = params;
+        const { imageId } = await params;
         const supabase = createAdminClient();
 
         // 1. Get Image Details with Order

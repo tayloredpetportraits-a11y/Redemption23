@@ -24,7 +24,7 @@ export async function approveImage(imageId: string) {
     return { success: true };
 }
 
-export async function rejectAndRegenerate(imageId: string, reason?: string) {
+export async function rejectAndRegenerate(imageId: string) {
     const supabase = createAdminClient();
 
     // 1. Fetch Image & Order Details

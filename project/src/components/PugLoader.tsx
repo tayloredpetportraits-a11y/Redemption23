@@ -16,7 +16,7 @@ export default function PugLoader({ text = "Generating Magic..." }: { text?: str
             <h2 className="text-xl md:text-2xl font-bold text-white tracking-wide animate-pulse">
                 {text}
             </h2>
-            <p className="text-zinc-400 text-sm mt-2">Hang tight, we're tailoring the pixels.</p>
+            <p className="text-zinc-400 text-sm mt-2">Hang tight, we&apos;re tailoring the pixels.</p>
         </div>
     );
 }

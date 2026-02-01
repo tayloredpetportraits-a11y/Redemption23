@@ -1,1 +1,16 @@
-{"projectId":"prj_HGSNUtYbQKlx4UG51LuvJYOWUAdO","orgId":"team_jk4R5r5OXw0N8AN54IluMMRA","projectName":"redemption23"}
+{
+  "projectId": "prj_HGSNUtYbQKlx4UG51LuvJYOWUAdO",
+  "orgId": "team_jk4R5r5OXw0N8AN54IluMMRA",
+  "projectName": "redemption23",
+  "settings": {
+    "createdAt": 1767803633767,
+    "framework": "nextjs",
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": "project",
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}

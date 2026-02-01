@@ -18,7 +18,7 @@ async function runTest() {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     // 1. Prepared Data (Provided by User)
-    const dogPath = '/Users/taylorstrong/.gemini/antigravity/brain/eb947b60-0fff-4d94-a093-b30b9a698942/uploaded_image_1768705991295.png';
+    const dogPath = path.join(process.cwd(), 'public', 'assets', 'test_bulldog.jpg');
     if (!fs.existsSync(dogPath)) {
         console.error("Test dog image not found at " + dogPath);
         process.exit(1);
@@ -27,11 +27,11 @@ async function runTest() {
 
     // 2. Upload to Storage (Simulate user upload)
     const timestamp = Date.now();
-    const storagePath = `uploads/pets/verify_gemini3_${timestamp}.png`;
+    const storagePath = `uploads/pets/verify_minimalist_bulldog_${timestamp}.jpg`;
 
     console.log(`Uploading ${storagePath}...`);
     const { error: uploadError } = await supabase.storage.from('primary-images').upload(storagePath, dogBuffer, {
-        contentType: 'image/png',
+        contentType: 'image/jpeg',
         upsert: true
     });
 
@@ -46,13 +46,14 @@ async function runTest() {
     // 3. Create Order
     console.log("Creating Test Order...");
     const { data: order, error: orderError } = await supabase.from('orders').insert({
-        customer_email: 'gemini3_tester@example.com',
-        customer_name: 'Gemini 3 Verifier',
-        product_type: 'royalty',
+        customer_email: 'minimalist_tester@example.com',
+        customer_name: 'Bulldog Tester',
+        product_type: 'minimalist', // Testing the minimalist theme fix specifically
         pet_image_url: publicUrl,
         status: 'pending',
-        pet_breed: 'Dachshund', // Guessing from image
-        pet_details: 'Brown dachshund, attentive expression, looking fast up/left', // Hints
+        pet_breed: 'English Bulldog',
+        pet_name: 'WINSTON', // Explicit name to test text overlay
+        pet_details: 'Wrinkly english bulldog puppy, looking forward, white and brown',
     }).select().single();
 
     if (orderError) {
@@ -68,10 +69,11 @@ async function runTest() {
         await generateImagesForOrder(
             order.id,
             publicUrl, // Use the public URL we just created
-            'royalty',
-            'Dachshund',
-            'Brown dachshund, attentive expression',
-            true // autoApprove = true so we can see them immediately in completed state if needed
+            'minimalist',
+            'English Bulldog',
+            'Wrinkly english bulldog puppy, looking forward, white and brown',
+            true, // autoApprove
+            'WINSTON' // petName for text overlay
         );
         console.log("Generation function returned successfully.");
     } catch (e) {

@@ -3,6 +3,8 @@ import './globals.css';
 import SupportWidget from '@/components/SupportWidget';
 import { ToastProvider } from '@/components/ui/Toast';
 
+import ErrorBoundary from '@/components/ErrorBoundary';
+
 const playfair = Playfair_Display({
   subsets: ['latin'],
   variable: '--font-playfair',
@@ -34,10 +36,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable} ${outfit.variable}`}>
       <body className="font-sans antialiased min-h-screen bg-brand-bg text-brand-text" suppressHydrationWarning>
-        <ToastProvider>
-          {children}
-          <SupportWidget />
-        </ToastProvider>
+        <ErrorBoundary>
+          <ToastProvider>
+            {children}
+            <SupportWidget />
+          </ToastProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

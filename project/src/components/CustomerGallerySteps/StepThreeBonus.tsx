@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { Lock, Sparkles, Share2, Check, Star } from 'lucide-react';
@@ -20,7 +20,8 @@ interface StepThreeBonusProps {
     printProduct: string;
 }
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import confetti from 'canvas-confetti';
 
 export default function StepThreeBonus({
     order,
@@ -40,11 +41,32 @@ export default function StepThreeBonus({
 
     const bonusTheme = bonusImages[0]?.theme_name || 'Artistic Style';
 
-    const handleUnlockBonus = async () => {
-        // Simulate Payment Flow
-        // Simulate Payment Flow (for demo/dev purposes, or production mock)
-        addToast('Processing $4.99 payment...', 'info');
 
+
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        if (bonusUnlocked) {
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#FFD700', '#FFA500', '#FF4500', '#008080', '#40E0D0'] // Brand colors + Gold
+            });
+        }
+    }, [bonusUnlocked]);
+
+    useEffect(() => {
+        if (searchParams.get('payment') === 'success') {
+            setBonusUnlocked(true);
+            addToast('Payment successful! Enjoy your bonus themes.', 'success');
+        }
+    }, [searchParams, setBonusUnlocked, addToast]);
+
+
+    const handleUnlockBonus = async () => {
+        // ... (existing analytics)
+        addToast('Processing $15 payment...', 'info');
 
         setCheckoutLoading(true);
         logger.info('Starting bonus unlock flow', { orderId: order.id });
@@ -59,7 +81,13 @@ export default function StepThreeBonus({
                 router.refresh(); // Fetch clean URLs from server
                 addToast('Bonus themes unlocked successfully!', 'success');
                 logger.info('Bonus unlocked successfully', { orderId: order.id });
-                // confetti call moved to parent or we import it here?
+
+                // Trigger confetti manually for manual unlock
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
             } else {
                 addToast('Failed to unlock bonus. Please try again.', 'error');
                 logger.error('Unlock failed response', { status: response.status });
@@ -129,7 +157,7 @@ export default function StepThreeBonus({
                     </h2>
                     <p className="text-brand-navy/70 max-w-2xl mx-auto text-lg leading-relaxed font-light">
                         Get <strong>{bonusImages.length} additional portraits</strong> in this exclusive style.
-                        <br />Available for a limited time for just <span className="font-semibold text-brand-navy">$4.99</span>.
+                        <br />Available for a limited time for just <span className="font-semibold text-brand-navy">$15</span>.
                     </p>
                 </div>
 
@@ -141,20 +169,29 @@ export default function StepThreeBonus({
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: idx * 0.1 }}
-                            className="relative aspect-square rounded-2xl overflow-hidden group shadow-lg border border-brand-navy/5 bg-white"
+                            className="relative aspect-square rounded-2xl overflow-hidden group shadow-lg border border-brand-navy/5 bg-white cursor-pointer"
+                            onClick={() => !bonusUnlocked && handleUnlockBonus()}
                         >
                             <Image
                                 src={bonusUnlocked ? image.url : (image.watermarked_url || image.url)}
                                 alt="Bonus"
                                 fill
                                 className={`object-cover transition-all duration-700 ease-out 
-                                    ${!bonusUnlocked ? 'blur-[2px] grayscale-[30%] scale-105 group-hover:scale-110 group-hover:grayscale-0 group-hover:blur-0' : 'group-hover:scale-110'}
+                                    ${!bonusUnlocked ? 'blur-sm grayscale scale-105 group-hover:scale-110 group-hover:brightness-110' : 'group-hover:scale-110'}
                                 `}
                             />
                             {!bonusUnlocked && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-brand-navy/20 backdrop-blur-[1px] transition-all group-hover:bg-brand-navy/10">
-                                    <div className="bg-white/90 p-3 rounded-full shadow-lg backdrop-blur text-brand-navy">
-                                        <Lock className="w-6 h-6" />
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/30 backdrop-blur-md transition-all duration-300 group-hover:bg-white/40 border border-white/20">
+                                    <div className="bg-white/80 p-3 rounded-full shadow-lg backdrop-blur-xl text-brand-navy mb-3 transform group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 ring-1 ring-white/50">
+                                        <Lock className="w-8 h-8 opacity-80" />
+                                    </div>
+                                    <span className="text-white font-bold text-shadow-md tracking-wide text-lg drop-shadow-lg">
+                                        Unlock for $15
+                                    </span>
+                                    <div className="absolute top-3 right-3">
+                                        <span className="bg-brand-blue/90 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">
+                                            MOST POPULAR
+                                        </span>
                                     </div>
                                 </div>
                             )}
@@ -171,7 +208,7 @@ export default function StepThreeBonus({
                             className="btn-primary px-16 py-6 text-xl rounded-full shadow-lg shadow-amber-900/20 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 border-none text-white font-bold relative overflow-hidden group"
                         >
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                            {checkoutLoading ? <span className="animate-pulse">Processing...</span> : `Unlock All for $4.99`}
+                            {checkoutLoading ? <span className="animate-pulse">Processing...</span> : `Unlock All for $15`}
                         </button>
                         <div className="flex items-center gap-2 text-brand-navy/60 text-sm">
                             <div className="flex gap-0.5">

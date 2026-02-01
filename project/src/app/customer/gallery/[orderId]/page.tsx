@@ -5,9 +5,9 @@ import type { Image } from '@/lib/supabase/client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Page({ params }: { params: { orderId: string } }) {
+export default async function Page({ params }: { params: Promise<{ orderId: string }> }) {
     const supabase = createAdminClient();
-    const { orderId } = params;
+    const { orderId } = await params;
 
     // 1. Fetch Order
     const { data: order, error: orderError } = await supabase
@@ -41,16 +41,12 @@ export default async function Page({ params }: { params: { orderId: string } }) 
     }
 
     // 3. Split Images
-    // Base: Primary images only (exclude bonus and upsell/mockups)
-    const baseImages = (images || []).filter((img: Image) => img.type === 'primary' && !img.is_bonus);
-
-    // Bonus: Any image marked is_bonus (usually type=upsell)
-    const bonusImages = (images || []).filter((img: Image) => img.is_bonus);
-
-    // Mockups: type=upsell or type=mockup but NOT bonus (Admin generated or Manual mockups)
-    const mockupImages = (images || []).filter((img: Image) => (img.type === 'upsell' || img.type === 'mockup') && !img.is_bonus);
-
-    console.log(`[Gallery Debug] Base: ${baseImages.length}, Bonus: ${bonusImages.length}, Mockups: ${mockupImages.length}`);
+    // Filter images
+    const baseImages = (images || []).filter((img: Image) => !img.is_bonus && img.type !== 'mobile_wallpaper');
+    const bonusImages = (images || []).filter((img: Image) => img.is_bonus && img.type !== 'mobile_wallpaper'); // Assuming bonus are just the extra styles
+    const mockupImages = (images || []).filter((img: Image) => img.type === 'mockup');
+    const upsellImages = (images || []).filter((img: Image) => img.type === 'upsell');
+    const mobileImages = (images || []).filter((img: Image) => img.type === 'mobile_wallpaper');
 
     return (
         <CustomerGallery
@@ -58,6 +54,8 @@ export default async function Page({ params }: { params: { orderId: string } }) 
             baseImages={baseImages}
             bonusImages={bonusImages}
             mockupImages={mockupImages}
+            upsellImages={upsellImages}
+            mobileImages={mobileImages}
         />
     );
 }

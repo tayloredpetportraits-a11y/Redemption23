@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Check, X, Loader2, Maximize2, XCircle,
-    ChevronLeft, ChevronRight, CheckCircle, MoreHorizontal
+    Check, X, Loader2, XCircle, CheckCircle
 } from 'lucide-react';
 import Image from 'next/image';
 import type { Image as ImageType } from '@/lib/supabase/client';
@@ -81,13 +80,7 @@ export default function ReviewGrid({ images, onApprove, onReject, loading }: Rev
         }
     };
 
-    const handlePrevFocus = () => {
-        if (focusIndex > 0) {
-            const prevIdx = focusIndex - 1;
-            setFocusIndex(prevIdx);
-            setFocusedImage(images[prevIdx]);
-        }
-    };
+    // const handlePrevFocus = () => { ... }
 
     // Keyboard Shortcuts
     useEffect(() => {

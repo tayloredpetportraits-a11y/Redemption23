@@ -5,9 +5,9 @@ import type { Image } from '@/lib/supabase/client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Page({ params }: { params: { id: string } }) {
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
     const supabase = createAdminClient();
-    const { id: orderId } = params;
+    const { id: orderId } = await params;
 
     // 1. Fetch Order
     const { data: order, error: orderError } = await supabase
@@ -34,15 +34,6 @@ export default async function Page({ params }: { params: { id: string } }) {
         return <div className="p-8 text-center">Failed to load gallery.</div>;
     }
 
-    // 3. Fetch Product Templates (NEW)
-    const { data: productTemplates, error: prodError } = await supabase
-        .from('product_templates')
-        .select('*')
-        .eq('is_active', true);
-
-    if (prodError) {
-        console.error('Failed to fetch products:', prodError);
-    }
 
     // 4. Split Images
     const baseImages = (images || []).filter((img: Image) => img.type === 'primary' && !img.is_bonus);
@@ -71,7 +62,7 @@ export default async function Page({ params }: { params: { id: string } }) {
                 bonusImages={bonusImages}
                 mockupImages={mockupImages}
                 upsellImages={upsellImages}
-                productTemplates={productTemplates || []} // Pass down new templates
+                mobileImages={(images || []).filter((img: Image) => img.type === 'mobile_wallpaper')}
             />
         </div>
     );

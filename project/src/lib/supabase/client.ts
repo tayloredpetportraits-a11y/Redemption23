@@ -40,7 +40,16 @@ export type Order = {
   fulfillment_status: string | null;
   print_provider_order_id: string | null;
   share_count: number;
+  shelter_dog_id?: string | null;
   created_at: string;
+};
+
+export type ShelterDog = {
+  id: string;
+  name: string;
+  photo_url: string;
+  adoption_url: string | null;
+  story: string | null;
 };
 
 export type Image = {
@@ -48,7 +57,7 @@ export type Image = {
   order_id: string;
   url: string;
   storage_path: string;
-  type: 'primary' | 'upsell' | 'mockup';
+  type: 'primary' | 'upsell' | 'mockup' | 'mobile_wallpaper';
   is_selected: boolean;
   is_bonus: boolean;
   watermarked_url: string | null;
@@ -56,5 +65,26 @@ export type Image = {
   display_order: number;
   status: 'pending_review' | 'approved' | 'rejected';
   template_id: string | null;
+  prompt?: string; // Optional debug info
   created_at: string;
+};
+
+export type ProductTemplate = {
+  id: string;
+  name: string;
+  overlay_url: string;
+  aspect_ratio: string;
+  purchase_link: string;
+  is_active: boolean;
+  created_at: string;
+  price_id?: string;
+  price?: number; // Price in cents
+  mask_url?: string | null;
+  warp_config?: {
+    tl: { x: number; y: number };
+    tr: { x: number; y: number };
+    bl: { x: number; y: number };
+    br: { x: number; y: number };
+    clip?: string;
+  };
 };

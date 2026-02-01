@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { Upload, X, CheckCircle, Copy, Wand2, FolderUp } from 'lucide-react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase Client (Client-Side)
@@ -15,7 +15,7 @@ const supabase = createClient(
 );
 
 export default function CreateOrderPage() {
-  const router = useRouter();
+  // const router = useRouter();
   const [activeTab, setActiveTab] = useState<'generate' | 'manual'>('generate');
 
   // Common Fields

@@ -29,6 +29,7 @@ export async function GET(req: Request) {
             .toBuffer();
 
         // 3. Return the image directly
+        // @ts-ignore
         return new NextResponse(wallpaperBuffer, {
             headers: {
                 'Content-Type': 'image/jpeg',

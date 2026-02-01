@@ -5,24 +5,27 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-async function findLatestOrder() {
-    const { data, error } = await supabase
+async function findLatest() {
+    console.log('🔍 Searching for latest Spa Day order...');
+    const { data: order } = await supabase
         .from('orders')
-        .select('id, customer_name, pet_name')
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .select('*')
+        .eq('customer_email', 'full.test.754027067@example.com')
         .single();
 
-    if (error) {
-        console.error('Error finding order:', error);
+    if (order) {
+        console.log(`FOUND_ORDER_ID=${order.id}`);
+        console.log(`SHOPIFY_ID=${order.shopify_order_id}`);
+        console.log(`CUSTOMER=${order.customer_email}`);
+
+        // Count images
+        const { count } = await supabase.from('images').select('*', { count: 'exact', head: true }).eq('order_id', order.id);
+        console.log(`IMAGE_COUNT=${count}`);
     } else {
-        console.log(`Latest Order: ${data.id} (${data.customer_name} - ${data.pet_name})`);
+        console.log('No orders found.');
     }
 }
 
-findLatestOrder();
+findLatest();

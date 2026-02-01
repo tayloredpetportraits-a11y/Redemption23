@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
+// import { createClient } from '@supabase/supabase-js';
 
 // Inits moved inside handler
 
@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
     apiVersion: '2025-12-15.clover',
   });
 
-  const supabase = createClient(
+  /* const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  ); */
 
   if (!signature) {
     return NextResponse.json(
@@ -45,27 +45,19 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        if (session.metadata?.productType === 'bonus_theme') {
+        if (session.metadata?.type === 'bonus_unlock' || session.metadata?.productType === 'bonus_theme') {
           const orderId = session.metadata.orderId;
 
-          const { error } = await supabase
-            .from('orders')
-            .update({
-              bonus_unlocked: true,
-              bonus_payment_status: 'paid',
-              stripe_session_id: session.id,
-            })
-            .eq('id', orderId);
-
-          if (error) {
-            console.error('Failed to update order:', error);
-            return NextResponse.json(
-              { error: 'Failed to update order' },
-              { status: 500 }
-            );
+          // Use centralized unlock logic
+          const { unlockBonusContent } = await import('@/lib/orders/unlock');
+          try {
+            await unlockBonusContent(orderId);
+            console.log(`Bonus theme unlocked via Stripe for order ${orderId}`);
+          } catch (err) {
+            console.error(`Failed to unlock bonus content for order ${orderId}`, err);
+            // We don't return error here to avoid failing the webhook (which would cause retries),
+            // but we should probably log it critically.
           }
-
-          console.log(`Bonus theme unlocked for order ${orderId}`);
         }
         break;
       }

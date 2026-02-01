@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { Plus, Trash2, Power, Search, Upload, X, ImageIcon, Check } from 'lucide-react';
+import { Plus, Trash2, Power, Search, Upload, X, ImageIcon } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { createClient } from '@/lib/supabase/client';
 import { getThemes, saveThemeToDB, deleteTheme, toggleThemeStatus, type Theme } from '@/app/actions/themes';
@@ -181,13 +181,22 @@ export default function ThemesPage() {
                                     onClick={async (e) => {
                                         e.stopPropagation();
                                         e.preventDefault();
-                                        if (!window.confirm("Delete this style permanently?")) return;
+                                        if (!window.confirm(`Delete style "${theme.name}" permanently? This cannot be undone.`)) return;
+
+                                        // Set a local deleting state if we had one, but for now we can rely on optimistically removing or just waiting
+                                        // Since we don't have a per-item loading state in the parent, we'll try to do it via a quick blocking alert or transition
+                                        // Better: Let's add a deleting ID state to the component
+                                        // But I need to add the state first. 
+                                        // For now, I will using a simple busy wait indicator logic if I can edit the component fully.
+                                        // I'll assume I can edit the component to add state in a previous step, but I am in replace_file_content.
+                                        // I will use `setThemes` to optimistic update immediately? No, that's dangerous if it fails.
+
                                         try {
                                             await deleteTheme(theme.id);
                                             setThemes(prev => prev.filter(t => t.id !== theme.id));
-                                            alert('Theme deleted.');
                                         } catch (err: any) {
-                                            alert('Delete failed: ' + err.message);
+                                            console.error("Delete error:", err);
+                                            alert('Delete failed: ' + (err.message || "Unknown error"));
                                         }
                                     }}
                                     className="p-2 bg-black/60 text-red-400 rounded-full hover:bg-red-500 hover:text-white backdrop-blur-md transition-colors shadow-xl"

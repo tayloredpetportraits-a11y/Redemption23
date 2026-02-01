@@ -1,7 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import path from 'path';
+// import path from 'path';
 import { generateImagesForOrder } from './src/lib/ai/generation';
 
 // Load environment variables from .env.local

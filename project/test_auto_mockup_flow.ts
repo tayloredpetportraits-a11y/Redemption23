@@ -1,7 +1,7 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 import { createAdminClient } from './src/lib/supabase/server';
-import { generateProductMockup } from './src/lib/ai/generation';
+// import { generateProductMockup } from './src/lib/ai/generation';
 import fs from 'fs';
 import path from 'path';
 
