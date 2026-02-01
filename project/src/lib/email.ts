@@ -19,7 +19,9 @@ export async function sendCustomerNotification(
     }
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const port = process.env.PORT || '3000';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+        || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${port}`);
     const galleryLink = `${baseUrl}/customer/gallery/${orderId}`;
 
     console.log(`[Email Service] Sending '${type}' notification to ${customerEmail}...`);

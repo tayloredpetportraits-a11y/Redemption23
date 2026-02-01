@@ -52,8 +52,12 @@ async function simulateFullWebhook() {
 
     console.log(`📦 Sending Payload... Order: ${orderName}`);
 
+    const port = process.env.PORT || '3000';
+    const webhookUrl = `http://localhost:${port}/api/webhooks/shopify`;
+    console.log(`📡 Webhook URL: ${webhookUrl}`);
+
     try {
-        const res = await fetch('http://localhost:3000/api/webhooks/shopify', {
+        const res = await fetch(webhookUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -100,7 +104,8 @@ async function simulateFullWebhook() {
                 if (total >= 13) {
                     console.log(`\n\n✅ Generation Complete!`);
                     console.log(`ORDER_ID=${orderId}`);
-                    console.log(`MAGIC_LINK=http://localhost:3000/portal/${orderId}`);
+                    console.log(`MAGIC_LINK=http://localhost:${port}/portal/${orderId}`);
+                    console.log(`ADMIN_LINK=http://localhost:${port}/admin`);
                     process.exit(0);
                 }
             }
