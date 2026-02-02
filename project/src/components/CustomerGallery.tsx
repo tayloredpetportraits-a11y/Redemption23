@@ -41,6 +41,12 @@ export default function CustomerGallery({
   const [selectedImagesForRevision, setSelectedImagesForRevision] = useState<Set<string>>(new Set());
   const [revisionSubmitted, setRevisionSubmitted] = useState(order.revision_status !== 'none');
   const [loading, setLoading] = useState(false);
+  // Step 3: Social Media Consent
+  const [socialConsent, setSocialConsent] = useState(order.social_consent || false);
+  const [instagramHandle, setInstagramHandle] = useState(order.social_handle || '');
+  const [selectedPortraitForSharing, setSelectedPortraitForSharing] = useState<ImageType | null>(
+    selectedPortraitIdForPrint ? baseImages.find(img => img.id === selectedPortraitIdForPrint) || baseImages[0] : baseImages[0]
+  );
 
   // Helper Functions
   const isDigitalOnly = () => {
@@ -74,7 +80,8 @@ export default function CustomerGallery({
   const steps: Step[] = [
     { number: 1, label: 'Download', status: currentStep === 1 ? 'active' : currentStep > 1 ? 'completed' : 'inactive' },
     { number: 2, label: isDigitalOnly() ? 'Canvas Upsell' : 'Select Print', status: currentStep === 2 ? 'active' : currentStep > 2 ? 'completed' : 'inactive' },
-    { number: 3, label: 'Bonus Themes', status: currentStep === 3 ? 'active' : 'inactive' },
+    { number: 3, label: 'Social Sharing', status: currentStep === 3 ? 'active' : currentStep > 3 ? 'completed' : 'inactive' },
+    { number: 4, label: 'Bonus Themes', status: currentStep === 4 ? 'active' : 'inactive' },
   ];
 
   // Handlers
@@ -176,8 +183,8 @@ export default function CustomerGallery({
         origin: { y: 0.6 },
         colors: ['#7DC6FF', '#FF9AC4']
       });
-      alert('Print selection confirmed! We\'ll get started on your order.');
-      setCurrentStep(3); // Move to bonus step
+      alert('Print selection confirmed!');
+      setCurrentStep(3); // Move to social sharing step
     } catch (error) {
       console.error('Error confirming selection:', error);
       alert('Failed to confirm selection. Please try again.');
@@ -368,15 +375,150 @@ export default function CustomerGallery({
                     </div>
                   </div>
                   <button onClick={() => setCurrentStep(3)} className="btn-primary px-12">
-                    Continue to Bonus Themes
+                    Continue to Social Sharing
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* STEP 3: Bonus Upsell */}
+          {/* STEP 3: Social Media Consent & Sharing */}
           {currentStep === 3 && (
+            <div className="space-y-8">
+              <div className="text-center">
+                <h2 className="text-3xl md:text-4xl font-poppins font-bold text-portal-navy mb-2">
+                  Share {order.pet_name}'s Transformation! 🐾
+                </h2>
+                <p className="text-portal-gray text-lg">
+                  See the amazing before & after! Share on social to inspire other pet parents
+                </p>
+              </div>
+
+              {/* Before/After Comparison */}
+              <div className="max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Before */}
+                  <div className="card-white space-y-3">
+                    <h3 className="font-poppins font-bold text-portal-navy text-center text-xl">Before</h3>
+                    <div className="relative aspect-square rounded-xl overflow-hidden">
+                      {order.pet_image_url ? (
+                        <img
+                          src={order.pet_image_url}
+                          alt={`${order.pet_name} original photo`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                          <p className="text-gray-500"> Original Photo</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* After */}
+                  <div className="card-white space-y-3">
+                    <h3 className="font-poppins font-bold text-portal-navy text-center text-xl">After</h3>
+                    <div className="relative aspect-square rounded-xl overflow-hidden">
+                      {selectedPortraitForSharing && (
+                        <img
+                          src={selectedPortraitForSharing.url}
+                          alt={`${order.pet_name} portrait`}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Portrait Selection for Sharing */}
+                <div className="mt-6">
+                  <p className="text-center text-portal-gray mb-3">Choose which portrait to share:</p>
+                  <div className="grid grid-cols-5 gap-3">
+                    {baseImages.map((img) => (
+                      <div
+                        key={img.id}
+                        onClick={() => setSelectedPortraitForSharing(img)}
+                        className={`cursor-pointer rounded-lg overflow-hidden transition-all ${selectedPortraitForSharing?.id === img.id ? 'ring-4 ring-portal-sky' : 'opacity-60 hover:opacity-100'
+                          }`}
+                      >
+                        <img
+                          src={img.url}
+                          alt="Portrait option"
+                          className="w-full aspect-square object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Social Consent */}
+              <div className="max-w-xl mx-auto space-y-4">
+                <div className="card-white">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={socialConsent}
+                      onChange={(e) => setSocialConsent(e.target.checked)}
+                      className="mt-1 w-5 h-5 text-portal-sky focus:ring-portal-sky rounded"
+                    />
+                    <span className="text-portal-gray">
+                      I consent to Taylored sharing {order.pet_name}'s photo on social media to inspire other pet parents ❤️
+                    </span>
+                  </label>
+                </div>
+
+                {socialConsent && (
+                  <div className="card-white">
+                    <label className="block text-portal-navy font-semibold mb-2">
+                      Your Instagram Handle (Optional)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-portal-gray text-xl">@</span>
+                      <input
+                        type="text"
+                        value={instagramHandle.replace('@', '')}
+                        onChange={(e) => setInstagramHandle(e.target.value.replace('@', ''))}
+                        placeholder="your_handle"
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-portal-sky focus:ring-2 focus:ring-portal-sky/20 transition-all"
+                      />
+                    </div>
+                    <p className="text-sm text-portal-gray mt-2">
+                      We'll tag you when we share your pet's transformation!
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button
+                  onClick={async () => {
+                    // Save social consent to database
+                    try {
+                      await fetch(`/api/orders/${order.id}/social-consent`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          social_consent: socialConsent,
+                          social_handle: socialConsent ? instagramHandle : null,
+                        }),
+                      });
+                    } catch (error) {
+                      console.error('Error saving consent:', error);
+                    }
+                    setCurrentStep(4); // Move to bonus step
+                  }}
+                  className="btn-primary px-12"
+                >
+                  Continue to Bonus Themes
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 4: Bonus Upsell */}
+          {currentStep === 4 && (
             <div className="space-y-8">
               <div className="text-center">
                 <h2 className="text-3xl md:text-4xl font-poppins font-bold text-portal-navy mb-2">
