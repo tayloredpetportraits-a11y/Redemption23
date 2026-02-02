@@ -145,27 +145,37 @@ export class PrintifyService {
      */
     static async generateMockupImage(imageUrl: string, productType: string): Promise<string | null> {
         if (!this.TOKEN || !this.SHOP_ID) {
-            console.warn('[Printify] Missing API Token or Shop ID for mockup generation.');
+            console.warn('[Printify] Missing API Token or Ship ID for mockup generation.');
             return null;
         }
 
-        // 1. Resolve Config
-        // Use a default fallback if specific type is missing, to ensure we test valid IDs
-        // Fallback to "Mug" (Blueprint 68, Provider 16, Variant 12345 (Generic)) or Canvas
-        let config = PRINTIFY_PRODUCT_MAP[productType];
+        console.log(`[Printify] Raw productType from order: "${productType}"`);
 
-        // AUTO-FIX: If config indicates placeholder "0" or "1234", use a Real Printify ID for testing
-        // Blueprint 68 = Mug, Provider 16 = Spoke Custom, Variant 13398 = 11oz Ceramic
-        if (!config || config.blueprint_id < 100) {
-            console.log('[Printify] Using Fallback "Mug" Config for Testing (Real IDs)');
-            config = {
-                blueprint_id: 68,
-                print_provider_id: 16,
-                variant_id: 13398
-            };
+        // 1. Normalize productType to match config keys
+        // Convert "Luxury Spa Day Portrait - Canvas 11x14" -> "canvas-11x14"
+        let normalizedType = productType.toLowerCase();
+
+        // Extract product type from formatted strings
+        if (normalizedType.includes('canvas')) {
+            if (normalizedType.includes('16x20')) normalizedType = 'canvas-16x20';
+            else normalizedType = 'canvas-11x14'; // default canvas size
+        } else if (normalizedType.includes('mug')) {
+            normalizedType = 'mug';
+        } else if (normalizedType.includes('tumbler')) {
+            normalizedType = 'tumbler';
         }
 
-        console.log(`[Printify] Generating Mockup for ${productType} using Blueprint: ${config.blueprint_id}`);
+        console.log(`[Printify] Normalized productType: "${normalizedType}"`);
+
+        // 2. Resolve Config
+        let config = PRINTIFY_PRODUCT_MAP[normalizedType];
+
+        if (!config || config.blueprint_id === 0) {
+            console.warn(`[Printify] No valid config found for "${normalizedType}". Skipping mockup.`);
+            return null;
+        }
+
+        console.log(`[Printify] Generating Mockup using Blueprint: ${config.blueprint_id}, Provider: ${config.print_provider_id}`);
 
         try {
             // STEP 0: Upload Image to get ID
