@@ -41,6 +41,10 @@ export default function CustomerGallery({
   const [selectedImagesForRevision, setSelectedImagesForRevision] = useState<Set<string>>(new Set());
   const [revisionSubmitted, setRevisionSubmitted] = useState(order.revision_status !== 'none');
   const [loading, setLoading] = useState(false);
+  // Step 2: Real Printify Mockup Generation
+  const [mockupUrl, setMockupUrl] = useState<string | null>(null);
+  const [isGeneratingMockup, setIsGeneratingMockup] = useState(false);
+
   // Step 3: Social Media Consent
   const [socialConsent, setSocialConsent] = useState(order.social_consent || false);
   const [instagramHandle, setInstagramHandle] = useState(order.social_handle || '');
@@ -314,7 +318,32 @@ export default function CustomerGallery({
                     {allAvailablePortraits.map((img) => (
                       <div
                         key={img.id}
-                        onClick={() => setSelectedPortraitIdForPrint(img.id)}
+                        onClick={async () => {
+                          setSelectedPortraitIdForPrint(img.id);
+                          // Generate REAL mockup with THIS portrait
+                          setIsGeneratingMockup(true);
+                          setMockupUrl(null);
+                          try {
+                            const response = await fetch('/api/generate-mockup', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                portraitUrl: img.url,
+                                productType: order.product_type || 'canvas-11x14'
+                              })
+                            });
+                            if (response.ok) {
+                              const { mockupUrl: generatedMockupUrl } = await response.json();
+                              setMockupUrl(generatedMockupUrl);
+                            } else {
+                              console.error('Mockup generation failed:', await response.text());
+                            }
+                          } catch (error) {
+                            console.error('Failed to generate mockup:', error);
+                          } finally {
+                            setIsGeneratingMockup(false);
+                          }
+                        }}
                         className={`
                           cursor-pointer rounded-xl overflow-hidden transition-all
                           ${selectedPortraitIdForPrint === img.id ? 'image-selected' : 'image-card'}
@@ -334,24 +363,49 @@ export default function CustomerGallery({
                     ))}
                   </div>
 
+                  {/* Real Printify Mockup */}
                   {selectedPortraitIdForPrint && (
-                    <div className="mt-8">
-                      <ProductMockup
-                        productType={order.product_type?.toLowerCase().includes('canvas') ? 'canvas' :
-                          order.product_type?.toLowerCase().includes('tumbler') ? 'tumbler' :
-                            order.product_type?.toLowerCase().includes('mug') ? 'mug' : 'blanket'}
-                        portraitUrl={allAvailablePortraits.find(img => img.id === selectedPortraitIdForPrint)!.url}
-                        petName={order.pet_name || 'Pet'}
-                      />
-                      <div className="text-center mt-6">
-                        <button
-                          onClick={handleConfirmPrintSelection}
-                          disabled={loading}
-                          className="btn-primary px-12"
+                    <div className="mt-8 space-y-6">
+                      {isGeneratingMockup && (
+                        <div className="text-center py-12">
+                          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-portal-sky border-t-transparent mb-4"></div>
+                          <p className="text-portal-gray text-lg">Generating your {order.product_type} preview...</p>
+                          <p className="text-portal-gray text-sm mt-2">This may take a few seconds</p>
+                        </div>
+                      )}
+
+                      {!isGeneratingMockup && mockupUrl && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.5 }}
+                          className="space-y-6"
                         >
-                          {loading ? 'Confirming...' : 'Confirm Selection'}
-                        </button>
-                      </div>
+                          <div className="text-center">
+                            <h3 className="text-2xl font-poppins font-bold text-portal-navy mb-2">
+                              Here's what your {order.product_type} will look like:
+                            </h3>
+                          </div>
+
+                          <div className="relative w-full max-w-3xl mx-auto">
+                            <img
+                              src={mockupUrl}
+                              alt="Real product mockup"
+                              className="w-full rounded-xl shadow-2xl"
+                            />
+                          </div>
+
+                          <div className="text-center">
+                            <button
+                              onClick={handleConfirmPrintSelection}
+                              disabled={loading}
+                              className="btn-primary px-12"
+                            >
+                              {loading ? 'Confirming...' : 'Confirm Selection'}
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
                     </div>
                   )}
                 </>
