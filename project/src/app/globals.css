@@ -42,12 +42,14 @@
 
   /* Primary Button - Sky Blue */
   .btn-primary {
-    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl bg-portal-sky text-portal-navy transition-all duration-200 ease-out hover:brightness-90 active:scale-95 shadow-[0_4px_12px_rgba(125, 198, 255, 0.3)];
+    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl bg-portal-sky text-portal-navy transition-all duration-200 ease-out hover:brightness-90 active:scale-95;
+    box-shadow: 0 4px 12px rgba(125, 198, 255, 0.3);
   }
 
   /* Secondary Button - Bubblegum Pink */
   .btn-secondary {
-    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl bg-portal-pink text-portal-navy transition-all duration-200 ease-out hover:brightness-90 active:scale-95 shadow-[0_4px_12px_rgba(255, 154, 196, 0.3)];
+    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl bg-portal-pink text-portal-navy transition-all duration-200 ease-out hover:brightness-90 active:scale-95;
+    box-shadow: 0 4px 12px rgba(255, 154, 196, 0.3);
   }
 
   /* Outline Button */
@@ -67,7 +69,8 @@
 
   /* Selected Image Border */
   .image-selected {
-    @apply ring-4 ring-portal-sky shadow-[0_0_20px_rgba(125, 198, 255, 0.5)];
+    @apply ring-4 ring-portal-sky;
+    box-shadow: 0 0 20px rgba(125, 198, 255, 0.5);
   }
 
   /* Focus State */
