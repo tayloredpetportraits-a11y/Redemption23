@@ -4,8 +4,10 @@
 
 @layer base {
   body {
-    @apply bg-brand-bg text-brand-text antialiased;
-    font-family: var(--font-outfit), var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    @apply antialiased;
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #E4F3FF 0%, #E0D6FF 100%);
+    min-height: 100vh;
   }
 
   h1,
@@ -14,54 +16,87 @@
   h4,
   h5,
   h6 {
-    font-family: var(--font-playfair), serif;
-    @apply font-medium tracking-tight text-brand-navy;
+    font-family: var(--font-poppins), sans-serif;
+    @apply font-bold text-portal-navy;
   }
 
   h1 {
-    @apply text-4xl md:text-5xl lg:text-6xl;
+    @apply text-5xl md:text-6xl;
   }
 
   h2 {
-    @apply text-3xl md:text-4xl lg:text-5xl;
+    @apply text-3xl md:text-4xl;
   }
 
   h3 {
-    @apply text-2xl md:text-3xl lg:text-4xl;
+    @apply text-2xl md:text-3xl;
   }
 }
 
 @layer components {
 
-  /* Modern Glassmorphism Logic */
-  .glass-card {
-    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-xl shadow-brand-navy/5 rounded-2xl;
+  /* White Content Card */
+  .card-white {
+    @apply bg-white rounded-2xl shadow-lg p-8 md:p-12;
   }
 
-  .glass-panel {
-    @apply bg-brand-navy/5 backdrop-blur-lg border border-brand-navy/5 rounded-xl;
-  }
-
-  /* Premium Buttons */
+  /* Primary Button - Sky Blue */
   .btn-primary {
-    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl transition-all duration-300 ease-out active:scale-95 bg-brand-navy text-white shadow-lg shadow-brand-navy/20 hover:bg-brand-navy/90 hover:shadow-brand-navy/30 hover:-translate-y-0.5;
+    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl bg-portal-sky text-portal-navy transition-all duration-200 ease-out hover:brightness-90 active:scale-95 shadow-[0_4px_12px_rgba(125, 198, 255, 0.3)];
   }
 
+  /* Secondary Button - Bubblegum Pink */
   .btn-secondary {
-    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl transition-all duration-300 ease-out active:scale-95 border border-brand-navy/10 text-brand-navy bg-white/50 hover:bg-white hover:border-brand-navy/30 hover:shadow-md backdrop-blur-sm;
+    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl bg-portal-pink text-portal-navy transition-all duration-200 ease-out hover:brightness-90 active:scale-95 shadow-[0_4px_12px_rgba(255, 154, 196, 0.3)];
   }
 
-  .btn-ghost {
-    @apply inline-flex items-center justify-center font-medium px-4 py-2 rounded-lg transition-colors text-brand-navy/70 hover:text-brand-navy hover:bg-brand-navy/5;
+  /* Outline Button */
+  .btn-outline {
+    @apply inline-flex items-center justify-center font-semibold px-8 py-4 rounded-xl border-2 border-portal-navy text-portal-navy bg-white transition-all duration-200 hover:bg-portal-navy hover:text-white active:scale-95;
   }
 
-  .accent-border {
-    @apply border-brand-periwinkle;
+  /* Frosted Glass Overlay for Locked Content */
+  .frosted-glass {
+    @apply absolute inset-0 flex flex-col items-center justify-center cursor-pointer bg-white/60 backdrop-blur-lg border-2 border-portal-sky rounded-xl transition-all duration-300 hover:bg-white/70;
   }
 
-  .glow-text {
-    @apply text-brand-navy;
-    /* Subtle glow for elegance */
-    text-shadow: 0 0 20px rgba(16, 17, 35, 0.1);
+  /* Image Card */
+  .image-card {
+    @apply rounded-xl shadow-md overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-lg;
+  }
+
+  /* Selected Image Border */
+  .image-selected {
+    @apply ring-4 ring-portal-sky shadow-[0_0_20px_rgba(125, 198, 255, 0.5)];
+  }
+
+  /* Focus State */
+  *:focus-visible {
+    @apply outline-none ring-3 ring-portal-sky ring-offset-2;
+  }
+}
+
+@layer utilities {
+
+  /* Page Load Animation */
+  .fade-in-up {
+    animation: fadeInUp 400ms ease-out;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Smooth Transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
   }
 }

@@ -1,4 +1,4 @@
-import { Playfair_Display, Inter, Outfit } from 'next/font/google';
+import { Playfair_Display, Inter, Outfit, Poppins } from 'next/font/google';
 import './globals.css';
 import SupportWidget from '@/components/SupportWidget';
 import { ToastProvider } from '@/components/ui/Toast';
@@ -23,6 +23,13 @@ const outfit = Outfit({
   display: 'swap',
 });
 
+const poppins = Poppins({
+  subsets: ['latin'],
+  weight: ['400', '600', '700'],
+  variable: '--font-poppins',
+  display: 'swap',
+});
+
 export const metadata = {
   title: 'Pet Portrait Redemption',
   description: 'Redeem your beautiful pet portrait artwork',
@@ -34,8 +41,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${inter.variable} ${outfit.variable}`}>
-      <body className="font-sans antialiased min-h-screen bg-brand-bg text-brand-text" suppressHydrationWarning>
+    <html lang="en" className={`${playfair.variable} ${inter.variable} ${outfit.variable} ${poppins.variable}`}>
+      <body className="font-sans antialiased min-h-screen" suppressHydrationWarning>
         <ErrorBoundary>
           <ToastProvider>
             {children}

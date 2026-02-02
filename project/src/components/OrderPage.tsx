@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { Check, Lock, Download, X, Edit3, Smartphone } from 'lucide-react';
@@ -10,6 +10,7 @@ import JSConfetti from 'js-confetti';
 import ReviewModal from './ReviewModal';
 import RevisionRequestModal from './RevisionRequestModal';
 import ImpactBanner from './ImpactBanner';
+import { MockupGenerator } from './MockupEngine/MockupGenerator';
 
 interface OrderPageProps {
   order: Order;
@@ -32,6 +33,15 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
   const [socialHandle, setSocialHandle] = useState('');
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
+
+  // Fire confetti on page load for immediate WOW moment
+  useEffect(() => {
+    const jsConfetti = new JSConfetti();
+    jsConfetti.addConfetti({
+      emojis: ['🐶', '🐱', '🦴', '🐾'],
+      confettiNumber: 100,
+    });
+  }, []);
 
   const handleImageSelect = (imageId: string) => {
     if (!confirmed) {
@@ -71,12 +81,6 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
           }),
         });
       }
-
-      const jsConfetti = new JSConfetti();
-      jsConfetti.addConfetti({
-        emojis: ['🐶', '🐱', '🦴', '🐾'],
-        confettiNumber: 100,
-      });
 
       setConfirmed(true);
       setShowMockup(false);
@@ -340,21 +344,23 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
                     src={image.url}
                     alt="Bonus"
                     fill
-                    className={`object-cover transition-all ${isPaid ? '' : 'blur-sm grayscale'
-                      }`}
+                    className="object-cover transition-all"
                   />
 
                   {!isPaid ? (
                     <div
                       onClick={() => setShowPaymentModal(true)}
-                      className="absolute inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center cursor-pointer hover:bg-white/40 transition-all opacity-0 group-hover:opacity-100 md:opacity-100"
+                      className="absolute inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center cursor-pointer hover:bg-white/25 transition-all opacity-100"
                     >
-                      <div className="text-center space-y-2 transform transition-transform group-hover:scale-105">
-                        <div className="bg-black/20 p-3 rounded-full inline-block backdrop-blur-sm">
-                          <Lock className="w-8 h-8 text-white" />
+                      <div className="text-center space-y-2 transform transition-transform group-hover:scale-110">
+                        <div className="bg-black/30 p-4 rounded-full inline-block backdrop-blur-sm">
+                          <Lock className="w-10 h-10 text-white drop-shadow-lg" />
                         </div>
-                        <p className="text-white font-bold text-lg drop-shadow-md px-2">
+                        <p className="text-white font-bold text-xl drop-shadow-lg px-3">
                           Unlock for $15
+                        </p>
+                        <p className="text-white/90 text-sm drop-shadow-md">
+                          10 Bonus Themes
                         </p>
                       </div>
                     </div>
@@ -427,21 +433,12 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
                   <X className="w-6 h-6 text-white" />
                 </button>
 
-                <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden">
-                  <Image
-                    src="https://images.pexels.com/photos/1648776/pexels-photo-1648776.jpeg?auto=compress&cs=tinysrgb&w=1920"
-                    alt="Living Room"
-                    fill
-                    className="object-cover"
+                <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-zinc-900">
+                  <MockupGenerator
+                    productType={order.product_type || 'canvas'}
+                    imageUrl={selectedImage.url}
+                    className="w-full h-full"
                   />
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[35%] aspect-square shadow-2xl">
-                    <Image
-                      src={selectedImage.url}
-                      alt="Your print"
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
                 </div>
 
                 <div className="text-center mt-6 space-y-6">

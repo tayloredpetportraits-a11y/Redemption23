@@ -63,21 +63,21 @@ export default function RevisionRequestModal({ isOpen, onClose, onSubmit, portra
               </button>
 
               <div className="flex items-start gap-4 mb-6">
-                <div className="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                  <AlertCircle className="w-6 h-6 text-amber-600" />
+                <div className="flex-shrink-0 w-12 h-12 bg-portal-sky/20 rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-portal-sky" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-2xl font-poppins font-bold text-portal-navy mb-2">
                     Let's Perfect Your Portraits
                   </h2>
-                  <p className="text-gray-600">
+                  <p className="text-portal-gray">
                     We want to make sure every portrait looks exactly like {petName}! Select the portraits that need tweaking and let us know what to adjust.
                   </p>
                 </div>
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-portal-navy mb-3">
                   Which portraits need adjustments?
                 </label>
                 <div className="grid grid-cols-5 gap-3">
@@ -87,8 +87,8 @@ export default function RevisionRequestModal({ isOpen, onClose, onSubmit, portra
                       type="button"
                       onClick={() => togglePortraitSelection(portrait.id)}
                       className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${selectedPortraitIds.includes(portrait.id)
-                          ? 'border-amber-500 ring-2 ring-amber-500/50'
-                          : 'border-gray-300 hover:border-gray-400'
+                        ? 'border-portal-sky ring-2 ring-portal-sky/50'
+                        : 'border-gray-300 hover:border-portal-sky/50'
                         }`}
                     >
                       <Image
@@ -98,8 +98,8 @@ export default function RevisionRequestModal({ isOpen, onClose, onSubmit, portra
                         className="object-cover"
                       />
                       {selectedPortraitIds.includes(portrait.id) && (
-                        <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
-                          <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
+                        <div className="absolute inset-0 bg-portal-sky/20 flex items-center justify-center">
+                          <div className="w-8 h-8 bg-portal-sky rounded-full flex items-center justify-center">
                             <Check className="w-5 h-5 text-white" />
                           </div>
                         </div>
@@ -110,13 +110,13 @@ export default function RevisionRequestModal({ isOpen, onClose, onSubmit, portra
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-portal-gray mt-2">
                   Select one or more portraits that need adjustments
                 </p>
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-portal-navy mb-2">
                   For the selected portraits, what needs to be adjusted?
                 </label>
                 <textarea
@@ -124,12 +124,12 @@ export default function RevisionRequestModal({ isOpen, onClose, onSubmit, portra
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Please be specific! For example: 'Portrait #1: The left ear should be more floppy' or 'Portrait #3: The white patch on the chest is missing'"
                   rows={6}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-portal-sky focus:border-transparent resize-none"
                 />
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-portal-navy mb-2">
                   Have a photo that shows what you mean? (Optional)
                 </label>
                 <input
@@ -141,9 +141,9 @@ export default function RevisionRequestModal({ isOpen, onClose, onSubmit, portra
                       setReferencePhotos(Array.from(e.target.files));
                     }
                   }}
-                  className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100"
+                  className="block w-full text-sm text-portal-gray file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-portal-sky/20 file:text-portal-navy hover:file:bg-portal-sky/30"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-portal-gray mt-1">
                   Upload a reference photo showing the specific feature you'd like adjusted
                 </p>
               </div>
@@ -158,7 +158,7 @@ export default function RevisionRequestModal({ isOpen, onClose, onSubmit, portra
                 <button
                   onClick={handleSubmit}
                   disabled={selectedPortraitIds.length === 0 || !notes.trim()}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg hover:from-amber-700 hover:to-amber-800 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-amber-500/30"
+                  className="flex-1 px-6 py-3 bg-portal-sky text-portal-navy rounded-lg hover:brightness-90 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-button"
                 >
                   Submit Request
                 </button>

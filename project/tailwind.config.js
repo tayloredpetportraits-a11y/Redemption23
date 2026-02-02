@@ -8,34 +8,34 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        playfair: ['var(--font-playfair)', 'serif'],
+        poppins: ['var(--font-poppins)', 'sans-serif'],
         inter: ['var(--font-inter)', 'sans-serif'],
-        outfit: ['var(--font-outfit)', 'sans-serif'],
-        sans: ['var(--font-outfit)', 'var(--font-inter)', 'sans-serif'], // Default to Outfit for modern feel
+        sans: ['var(--font-inter)', 'sans-serif'],
       },
       colors: {
-        brand: {
-          bg: '#F4F5F7',        // Cool Silver (Main Background)
-          text: '#101123',      // Dark Navy (Primary Text)
-          navy: '#101123',      // Dark Navy (Primary Action)
-          periwinkle: '#E7ECFF',// Light Periwinkle (Secondary/Text-on-dark)
-          blue: '#D9E1FC',      // Vibrant Blue (Highlights)
-          white: '#FFFFFF',     // Surface/Cards
+        portal: {
+          // Background colors
+          'cool-blue': '#E4F3FF',
+          'soft-lilac': '#E0D6FF',
+          // Accent colors
+          'sky': '#7DC6FF',
+          'pink': '#FF9AC4',
+          // Text colors
+          'navy': '#1F2A3C',
+          'gray': '#444444',
         },
-        // Keeping zinc as a fallback if needed, but brand should take precedence
-        zinc: {
-          950: '#fafaf9',
-          900: '#ffffff',
-          800: '#e7e5e4',
-          700: '#d6d3d1',
-          600: '#a8a29e',
-          500: '#78716c',
-          400: '#57534e',
-          300: '#44403c',
-          200: '#292524',
-          100: '#1c1917',
-          50: '#0c0a09',
-        },
+      },
+      boxShadow: {
+        'card': '0 2px 8px rgba(0, 0, 0, 0.1)',
+        'button': '0 4px 12px rgba(125, 198, 255, 0.3)',
+        'button-pink': '0 4px 12px rgba(255, 154, 196, 0.3)',
+      },
+      borderRadius: {
+        'card': '16px',
+        'button': '12px',
+      },
+      ringWidth: {
+        '3': '3px',
       },
     },
   },

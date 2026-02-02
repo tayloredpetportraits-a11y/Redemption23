@@ -26,8 +26,8 @@ export default async function Page({ params }: { params: Promise<{ orderId: stri
         .from('images')
         .select('*')
         .eq('order_id', orderId)
-        // Show approved, bonus, AND pending images so customer can see them immediately
-        .or('status.eq.approved,status.eq.pending,is_bonus.eq.true')
+        // Show approved, bonus, AND pending/pending_review images so customer can see them immediately
+        .or('status.eq.approved,status.eq.pending,status.eq.pending_review,is_bonus.eq.true')
         .order('display_order', { ascending: true });
 
     console.log(`[Server Gallery] Order: ${orderId}, Images Found: ${images?.length}`);

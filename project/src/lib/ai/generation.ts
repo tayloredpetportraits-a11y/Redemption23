@@ -725,7 +725,7 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
                         order_id: orderId,
                         url: publicUrl,
                         storage_path: storagePath,
-                        type: isBonus ? 'upsell' : 'primary',
+                        type: isBonus ? 'bonus' : 'primary',
                         display_order: startIndex + i,
                         theme_name: isBonus ? `Bonus: ${theme.name}` : theme.name,
                         is_bonus: isBonus,
@@ -733,12 +733,12 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
                         template_id: tmplUrl // Storing the source URL as ID
                     });
 
-                    // [INCREMENTAL INSERT] Save immediately
+                    // [INCREMENTAL INSERT] Saveimmediately
                     await supabase.from('images').insert({
                         order_id: orderId,
                         url: publicUrl,
                         storage_path: storagePath,
-                        type: isBonus ? 'upsell' : 'primary',
+                        type: isBonus ? 'bonus' : 'primary',
                         display_order: startIndex + i,
                         theme_name: isBonus ? `Bonus: ${theme.name}` : theme.name,
                         is_bonus: isBonus,
@@ -760,7 +760,7 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
                                 order_id: orderId,
                                 url: mobileUrl,
                                 storage_path: mobileStoragePath,
-                                type: 'upsell', // Fixed: must be 'primary' or 'upsell' per DB constraint
+                                type: 'bonus',
                                 display_order: 1000 + i, // Push to end
                                 theme_name: `Mobile: ${theme.name}`,
                                 is_bonus: true, // Treated as bonus/extra
@@ -771,7 +771,7 @@ export async function generateImagesForOrder(orderId: string, petPhotoUrl: strin
                                 order_id: orderId,
                                 url: mobileUrl,
                                 storage_path: mobileStoragePath,
-                                type: 'upsell', // Fixed: must be 'primary' or 'upsell' per DB constraint
+                                type: 'bonus',
                                 display_order: 1000 + i,
                                 theme_name: `Mobile: ${theme.name}`,
                                 is_bonus: true,
