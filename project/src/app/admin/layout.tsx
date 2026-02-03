@@ -9,7 +9,6 @@ import { useEffect } from 'react';
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard }, // Points to Master Orders View
   { name: 'Themes', href: '/admin/themes', icon: Palette },
-  { name: 'Products', href: '/admin/products', icon: ShoppingBag },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 

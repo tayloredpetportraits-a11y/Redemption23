@@ -1,6 +1,5 @@
 'use client';
 
-// useState and useRef removed
 import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { Check, X, Instagram, Lock } from 'lucide-react';
 import Image from 'next/image';
@@ -10,6 +9,7 @@ interface SwipeCardProps {
   order: Order;
   primaryImage: ImageType | null;
   aiResultImage: ImageType | null;
+  context?: 'admin' | 'customer'; // NEW: Support dual contexts
   onApprove: () => void;
   onReject: () => void;
 }
@@ -18,6 +18,7 @@ export default function SwipeCard({
   order,
   primaryImage,
   aiResultImage,
+  context = 'admin', // Default to admin context
   onApprove,
   onReject,
 }: SwipeCardProps) {
@@ -44,34 +45,44 @@ export default function SwipeCard({
       className="glass-card p-6 rounded-lg cursor-grab active:cursor-grabbing"
     >
       <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="text-2xl">{order.customer_name}</h3>
-              <p className="text-zinc-400">{order.customer_email}</p>
-              <p className="text-zinc-500">Product: {order.product_type}</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              {order.social_consent ? (
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full text-green-400 text-sm whitespace-nowrap">
-                  <Check className="w-3 h-3" />
-                  Social Approved
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-zinc-700/30 border border-zinc-700 rounded-full text-zinc-500 text-sm whitespace-nowrap">
-                  <Lock className="w-3 h-3" />
-                  Private
-                </div>
-              )}
-              {order.social_handle && (
-                <div className="inline-flex items-center gap-1 px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-purple-400 text-xs whitespace-nowrap">
-                  <Instagram className="w-3 h-3" />
-                  {order.social_handle}
-                </div>
-              )}
+        {/* Context-aware header */}
+        {context === 'admin' ? (
+          // ADMIN CONTEXT: Show full order details
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-2xl">{order.customer_name}</h3>
+                <p className="text-zinc-400">{order.customer_email}</p>
+                <p className="text-zinc-500">Product: {order.product_type}</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                {order.social_consent ? (
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full text-green-400 text-sm whitespace-nowrap">
+                    <Check className="w-3 h-3" />
+                    Social Approved
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-zinc-700/30 border border-zinc-700 rounded-full text-zinc-500 text-sm whitespace-nowrap">
+                    <Lock className="w-3 h-3" />
+                    Private
+                  </div>
+                )}
+                {order.social_handle && (
+                  <div className="inline-flex items-center gap-1 px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-purple-400 text-xs whitespace-nowrap">
+                    <Instagram className="w-3 h-3" />
+                    {order.social_handle}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          // CUSTOMER CONTEXT: Clean, minimal header
+          <div className="text-center">
+            <h3 className="text-xl font-semibold text-white">Your Portrait Options</h3>
+            <p className="text-zinc-400 text-sm">Swipe to browse</p>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -117,14 +128,14 @@ export default function SwipeCard({
             className="flex-1 px-6 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors flex items-center justify-center gap-2"
           >
             <X className="w-5 h-5" />
-            Reject
+            {context === 'admin' ? 'Reject' : 'Pass'}
           </button>
           <button
             onClick={onApprove}
             className="flex-1 px-6 py-3 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-colors flex items-center justify-center gap-2"
           >
             <Check className="w-5 h-5" />
-            Approve
+            {context === 'admin' ? 'Approve' : 'Select This'}
           </button>
         </div>
       </div>

@@ -3,8 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { orderId: string } }
+    { params }: { params: Promise<{ orderId: string }> }
 ) {
+    const { orderId } = await params;
     try {
         const { social_consent, social_handle } = await request.json();
         const supabase = await createClient();
@@ -16,7 +17,7 @@ export async function POST(
                 social_handle,
                 consent_date: social_consent ? new Date().toISOString() : null,
             })
-            .eq('id', params.orderId)
+            .eq('id', orderId)
             .select()
             .single();
 

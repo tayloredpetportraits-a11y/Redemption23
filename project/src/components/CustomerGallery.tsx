@@ -11,7 +11,6 @@ import { createCheckoutSession } from '@/app/actions/stripe';
 import type { Order, Image as ImageType } from '@/lib/supabase/client';
 import { useSearchParams } from 'next/navigation';
 import StepIndicator, { type Step } from './StepIndicator';
-import ProductMockup from './ProductMockup';
 import RevisionRequestModal from './RevisionRequestModal';
 
 export default function CustomerGallery({
@@ -197,6 +196,8 @@ export default function CustomerGallery({
     }
   };
 
+
+  // @ts-expect-error - Function reserved for future revision feature
   const toggleImageForRevision = (imageId: string) => {
     const newSet = new Set(selectedImagesForRevision);
     if (newSet.has(imageId)) {

@@ -25,7 +25,7 @@ export default function StepIndicator({ steps }: StepIndicatorProps) {
                     }}
                 />
 
-                {steps.map((step, index) => (
+                {steps.map((step, _index) => (
                     <div key={step.number} className="flex flex-col items-center flex-1">
                         {/* Circle */}
                         <div

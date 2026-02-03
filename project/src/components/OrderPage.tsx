@@ -34,6 +34,14 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
 
+  // Upsell state
+  const [upsellProducts, setUpsellProducts] = useState<any[]>([]);
+  const [showUpsellPreview, setShowUpsellPreview] = useState(false);
+  const [selectedUpsellProduct, setSelectedUpsellProduct] = useState<any>(null);
+  const [upsellMockupUrl, setUpsellMockupUrl] = useState<string | null>(null);
+  const [loadingUpsellProducts, setLoadingUpsellProducts] = useState(false);
+  const [generatingUpsellMockup, setGeneratingUpsellMockup] = useState(false);
+
   // Fire confetti on page load for immediate WOW moment
   useEffect(() => {
     const jsConfetti = new JSConfetti();
@@ -42,6 +50,87 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
       confettiNumber: 100,
     });
   }, []);
+
+  // Fetch upsell products for digital-only orders
+  useEffect(() => {
+    if (order.product_type === 'digital' && confirmed) {
+      fetchUpsellProducts();
+    }
+  }, [order.product_type, confirmed]);
+
+  const fetchUpsellProducts = async () => {
+    setLoadingUpsellProducts(true);
+    try {
+      const { data, error } = await fetch('/api/admin/printify-products?active=true').then(r => r.json());
+      // Filter out 'digital' product type
+      const physicalProducts = (data.products || []).filter((p: any) => p.product_type !== 'digital');
+      setUpsellProducts(physicalProducts);
+    } catch (error) {
+      console.error('Failed to fetch upsell products:', error);
+    } finally {
+      setLoadingUpsellProducts(false);
+    }
+  };
+
+  const handleUpsellProductSelect = (product: any) => {
+    setSelectedUpsellProduct(product);
+    setShowUpsellPreview(true);
+    setUpsellMockupUrl(null);
+  };
+
+  const handleUpsellPortraitSelect = async (imageUrl: string) => {
+    if (!selectedUpsellProduct) return;
+
+    setGeneratingUpsellMockup(true);
+    try {
+      const response = await fetch('/api/generate-mockup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          portraitUrl: imageUrl,
+          productType: selectedUpsellProduct.product_type
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate mockup');
+      }
+
+      const data = await response.json();
+      setUpsellMockupUrl(data.mockupUrl);
+    } catch (error) {
+      console.error('Upsell mockup error:', error);
+      alert('Failed to generate mockup preview. Please try again.');
+    } finally {
+      setGeneratingUpsellMockup(false);
+    }
+  };
+
+  const handleUpsellPurchase = async (portraitUrl: string) => {
+    if (!selectedUpsellProduct) return;
+
+    try {
+      const response = await fetch('/api/upsell-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          productType: selectedUpsellProduct.product_type,
+          portraitUrl
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const data = await response.json();
+      window.location.href = data.checkoutUrl;
+    } catch (error) {
+      console.error('Upsell checkout error:', error);
+      alert('Failed to start checkout. Please try again.');
+    }
+  };
 
   const handleImageSelect = (imageId: string) => {
     if (!confirmed) {
@@ -326,7 +415,64 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
             )}
           </section>
 
-          <section id="upsell-section" className="space-y-8">
+          {/* Physical Product Upsell Section (Digital Orders Only) */}
+          {order.product_type === 'digital' && confirmed && (
+            <section className="space-y-8">
+              <div className="text-center space-y-2">
+                <h2>Love Your Portraits? Get Them Printed!</h2>
+                <p className="text-zinc-400">
+                  Turn your digital masterpiece into a stunning physical keepsake
+                </p>
+              </div>
+
+              {loadingUpsellProducts ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#7C3AED]"></div>
+                  <p className="text-zinc-400 mt-4">Loading products...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {upsellProducts.map((product) => (
+                    <motion.div
+                      key={product.id}
+                      whileHover={{ y: -4 }}
+                      className="bg-zinc-800/50 rounded-lg overflow-hidden border border-zinc-700 hover:border-[#7C3AED] transition-all cursor-pointer"
+                      onClick={() => handleUpsellProductSelect(product)}
+                    >
+                      <div className="aspect-square bg-gradient-to-br from-[#7C3AED]/20 to-[#FF9AC4]/20 flex items-center justify-center">
+                        <div className="text-6xl">
+                          {product.product_type.includes('canvas') ? '🖼️' : '☕'}
+                        </div>
+                      </div>
+                      <div className="p-6 space-y-3">
+                        <h3 className="text-xl font-bold text-white">{product.product_name}</h3>
+                        <p className="text-zinc-400 text-sm">{product.description}</p>
+                        <div className="flex items-center justify-between pt-2">
+                          <span className="text-2xl font-bold text-[#7C3AED]">
+                            ${(product.price_cents / 100).toFixed(2)}
+                          </span>
+                          <button className="px-4 py-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-lg font-semibold transition-colors">
+                            See Preview
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+
+              <div className="text-center">
+                <button
+                  onClick={() => document.getElementById('bonus-upsell-section')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="text-zinc-400 hover:text-zinc-200 transition-colors"
+                >
+                  No thanks, continue →
+                </button>
+              </div>
+            </section>
+          )}
+
+          <section id="bonus-upsell-section" className="space-y-8">
             <div className="text-center space-y-2">
               <h2>Unlock Bonus Collection</h2>
               <p className="text-zinc-400">
@@ -571,6 +717,121 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
           onSubmit={handleReviewSubmit}
           onSkip={handleReviewSkip}
         />
+
+        {/* Upsell Preview Modal */}
+        <AnimatePresence>
+          {showUpsellPreview && selectedUpsellProduct && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+              onClick={() => {
+                setShowUpsellPreview(false);
+                setSelectedUpsellProduct(null);
+                setUpsellMockupUrl(null);
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="glass-card rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 space-y-6"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white">
+                    {selectedUpsellProduct.product_name} Preview
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setShowUpsellPreview(false);
+                      setSelectedUpsellProduct(null);
+                      setUpsellMockupUrl(null);
+                    }}
+                    className="p-2 hover:bg-zinc-700/50 rounded-lg transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                {!upsellMockupUrl ? (
+                  <div className="space-y-4">
+                    <p className="text-zinc-400">
+                      Select which portrait you'd like to see on your {selectedUpsellProduct.product_name.toLowerCase()}
+                    </p>
+                    <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+                      {primaryImages.map((image) => (
+                        <motion.div
+                          key={image.id}
+                          whileHover={{ scale: 1.05 }}
+                          onClick={() => handleUpsellPortraitSelect(image.url)}
+                          className="relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 border-zinc-700 hover:border-[#7C3AED] transition-all"
+                        >
+                          <Image
+                            src={image.url}
+                            alt="Portrait option"
+                            fill
+                            className="object-cover"
+                          />
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {generatingUpsellMockup && (
+                      <div className="text-center py-8">
+                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#7C3AED]"></div>
+                        <p className="text-zinc-400 mt-4">Generating your preview...</p>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="relative aspect-square rounded-lg overflow-hidden bg-zinc-900">
+                      <Image
+                        src={upsellMockupUrl}
+                        alt="Product mockup"
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-zinc-400">Price</p>
+                        <p className="text-3xl font-bold text-[#7C3AED]">
+                          ${(selectedUpsellProduct.price_cents / 100).toFixed(2)}
+                        </p>
+                      </div>
+
+                      <div className="space-x-2">
+                        <button
+                          onClick={() => setUpsellMockupUrl(null)}
+                          className="px-6 py-3 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-semibold transition-colors"
+                        >
+                          Change Portrait
+                        </button>
+                        <button
+                          onClick={() => {
+                            const selectedImage = primaryImages.find(
+                              (img) => upsellMockupUrl?.includes(encodeURIComponent(img.url))
+                            );
+                            if (selectedImage) {
+                              handleUpsellPurchase(selectedImage.url);
+                            }
+                          }}
+                          className="px-6 py-3 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-lg font-semibold transition-colors"
+                        >
+                          Purchase Now
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <RevisionRequestModal
           isOpen={showRevisionModal}

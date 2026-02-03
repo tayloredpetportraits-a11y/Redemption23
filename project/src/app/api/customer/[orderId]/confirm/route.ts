@@ -59,6 +59,7 @@ export async function POST(
       .from('images')
       .select('url')
       .eq('id', selectedImageId)
+      .eq('status', 'approved') // SECURITY: Only allow selecting approved images
       .single();
 
     if (order && image && printProduct !== 'digital') {

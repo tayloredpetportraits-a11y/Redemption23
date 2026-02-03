@@ -63,7 +63,7 @@ export type Image = {
   watermarked_url: string | null;
   theme_name: string | null;
   display_order: number;
-  status: 'pending_review' | 'approved' | 'rejected';
+  status: 'generated' | 'approved' | 'rejected'; // Updated: 'pending_review' → 'generated'
   template_id: string | null;
   prompt?: string; // Optional debug info
   created_at: string;

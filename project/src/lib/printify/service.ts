@@ -1,5 +1,5 @@
 
-import { PRINTIFY_PRODUCT_MAP } from './config';
+import { createClient } from '@supabase/supabase-js';
 
 interface OrderDetails {
     orderId: string;
@@ -28,11 +28,50 @@ export class PrintifyService {
         return process.env.PRINTIFY_API_TOKEN;
     }
 
+    /**
+     * Query database for product configuration
+     */
+    private static async getProductConfig(productType: string) {
+        try {
+            const supabase = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!,
+                {
+                    auth: {
+                        autoRefreshToken: false,
+                        persistSession: false
+                    }
+                }
+            );
+
+            const { data, error } = await supabase
+                .from('printify_product_configs')
+                .select('printify_blueprint_id, printify_print_provider_id, printify_variant_id')
+                .eq('product_type', productType)
+                .eq('is_active', true)
+                .single();
+
+            if (error || !data) {
+                console.error(`[Printify] Product not found in database: ${productType}`, error);
+                return null;
+            }
+
+            return {
+                blueprint_id: data.printify_blueprint_id,
+                print_provider_id: data.printify_print_provider_id,
+                variant_id: data.printify_variant_id
+            };
+        } catch (error) {
+            console.error(`[Printify] Database query error:`, error);
+            return null;
+        }
+    }
+
     static async createOrder(details: OrderDetails) {
         console.log(`[Printify] Preparing order for ${details.orderId} (${details.productType})`);
 
-        // 1. Resolve Product Config
-        const config = PRINTIFY_PRODUCT_MAP[details.productType];
+        // 1. Resolve Product Config from Database
+        const config = await this.getProductConfig(details.productType);
         if (!config || config.blueprint_id === 0) {
             console.warn(`[Printify] Skipping: No valid printify config for ${details.productType}`);
             return null;
@@ -158,17 +197,18 @@ export class PrintifyService {
         // Extract product type from formatted strings
         if (normalizedType.includes('canvas')) {
             if (normalizedType.includes('16x20')) normalizedType = 'canvas-16x20';
+            else if (normalizedType.includes('11x14')) normalizedType = 'canvas-11x14';
             else normalizedType = 'canvas-11x14'; // default canvas size
         } else if (normalizedType.includes('mug')) {
-            normalizedType = 'mug';
+            normalizedType = 'mug-11oz';
         } else if (normalizedType.includes('tumbler')) {
             normalizedType = 'tumbler';
         }
 
         console.log(`[Printify] Normalized productType: "${normalizedType}"`);
 
-        // 2. Resolve Config
-        let config = PRINTIFY_PRODUCT_MAP[normalizedType];
+        // 2. Resolve Config from Database
+        const config = await this.getProductConfig(normalizedType);
 
         if (!config || config.blueprint_id === 0) {
             console.warn(`[Printify] No valid config found for "${normalizedType}". Skipping mockup.`);

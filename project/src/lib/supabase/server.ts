@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSBClient } from '@supabase/supabase-js';
 
 
 export async function createServerClient() {
@@ -7,18 +7,21 @@ export async function createServerClient() {
 
 
 
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createSBClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: false,
     },
   });
 }
 
+// Alias for backward compatibility
+export const createClient = createServerClient;
+
 export function createAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-  return createClient(supabaseUrl, serviceRoleKey, {
+  return createSBClient(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

@@ -21,12 +21,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         notFound();
     }
 
-    // 2. Fetch Images
+    // 2. Fetch Images (SECURITY: Only show approved images)
     const { data: images, error: imgError } = await supabase
         .from('images')
         .select('*')
         .eq('order_id', orderId)
-        .or('status.eq.approved,status.eq.pending,is_bonus.eq.true')
+        .eq('status', 'approved') // CRITICAL: Customers only see admin-approved images
         .order('display_order', { ascending: true });
 
     if (imgError || !images) {

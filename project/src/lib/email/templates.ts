@@ -11,78 +11,78 @@ const FROM_EMAIL = 'Taylored Pet Portraits <noreply@tayloredpetportraits.com>';
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://redemption.tayloredpetportraits.com';
 
 interface EmailResult {
-    success: boolean;
-    messageId?: string;
-    error?: string;
+  success: boolean;
+  messageId?: string;
+  error?: string;
 }
 
 /**
  * Send email when portraits are ready with access token
  */
 export async function sendOrderReadyEmail(
-    orderId: string,
-    customerEmail: string,
-    customerName: string,
-    accessToken: string
+  _orderId: string,
+  customerEmail: string,
+  customerName: string,
+  accessToken: string
 ): Promise<EmailResult> {
-    const accessUrl = `${BASE_URL}/order/${accessToken}`;
+  const accessUrl = `${BASE_URL}/order/${accessToken}`;
 
-    try {
-        const { data, error } = await resend.emails.send({
-            from: FROM_EMAIL,
-            to: customerEmail,
-            subject: '🎨 Your Taylored Pet Portraits are Ready!',
-            html: getOrderReadyTemplate(customerName, accessUrl),
-        });
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: customerEmail,
+      subject: '🎨 Your Taylored Pet Portraits are Ready!',
+      html: getOrderReadyTemplate(customerName, accessUrl),
+    });
 
-        if (error) {
-            console.error('Failed to send order ready email:', error);
-            return { success: false, error: error.message };
-        }
-
-        return { success: true, messageId: data?.id };
-    } catch (error) {
-        console.error('Failed to send order ready email:', error);
-        return { success: false, error: String(error) };
+    if (error) {
+      console.error('Failed to send order ready email:', error);
+      return { success: false, error: error.message };
     }
+
+    return { success: true, messageId: data?.id };
+  } catch (error) {
+    console.error('Failed to send order ready email:', error);
+    return { success: false, error: String(error) };
+  }
 }
 
 /**
  * Send email with new access link when customer requests renewal
  */
 export async function sendNewLinkEmail(
-    orderId: string,
-    customerEmail: string,
-    customerName: string,
-    accessToken: string
+  _orderId: string,
+  customerEmail: string,
+  customerName: string,
+  accessToken: string
 ): Promise<EmailResult> {
-    const accessUrl = `${BASE_URL}/order/${accessToken}`;
+  const accessUrl = `${BASE_URL}/order/${accessToken}`;
 
-    try {
-        const { data, error } = await resend.emails.send({
-            from: FROM_EMAIL,
-            to: customerEmail,
-            subject: '🔗 Your New Taylored Pet Portraits Link',
-            html: getNewLinkTemplate(customerName, accessUrl),
-        });
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: customerEmail,
+      subject: '🔗 Your New Taylored Pet Portraits Link',
+      html: getNewLinkTemplate(customerName, accessUrl),
+    });
 
-        if (error) {
-            console.error('Failed to send new link email:', error);
-            return { success: false, error: error.message };
-        }
-
-        return { success: true, messageId: data?.id };
-    } catch (error) {
-        console.error('Failed to send new link email:', error);
-        return { success: false, error: String(error) };
+    if (error) {
+      console.error('Failed to send new link email:', error);
+      return { success: false, error: error.message };
     }
+
+    return { success: true, messageId: data?.id };
+  } catch (error) {
+    console.error('Failed to send new link email:', error);
+    return { success: false, error: String(error) };
+  }
 }
 
 /**
  * HTML template for "Your Portraits Are Ready" email
  */
 function getOrderReadyTemplate(customerName: string, accessUrl: string): string {
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -179,7 +179,7 @@ function getOrderReadyTemplate(customerName: string, accessUrl: string): string 
  * HTML template for "New Access Link" email
  */
 function getNewLinkTemplate(customerName: string, accessUrl: string): string {
-    return `
+  return `
 <!DOCTYPE html>
 <html lang="en">
 <head>

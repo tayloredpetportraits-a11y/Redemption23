@@ -6,7 +6,6 @@ import {
     LayoutDashboard,
     PlusCircle,
     Palette,
-    Image as ImageIcon,
     LogOut,
     Layers,
 } from 'lucide-react';
@@ -36,12 +35,6 @@ export default function AdminSidebar() {
             href: '/admin/themes',
             icon: Palette
         },
-        {
-            label: 'Manage Mockups',
-            href: '/admin/products',
-            icon: ImageIcon
-        },
-
     ];
 
     return (
