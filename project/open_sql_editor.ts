@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -6,7 +5,6 @@ import * as fs from 'fs';
 dotenv.config({ path: path.join(__dirname, '.env.local') });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 async function executeViaBrowser() {
     console.log('🌐 Opening browser to execute SQL...\n');

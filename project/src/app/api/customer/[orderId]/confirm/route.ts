@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { PrintifyService } from '@/lib/printify/service';
+import { Resend } from 'resend';
 
 export async function POST(
   request: NextRequest,
@@ -82,6 +83,23 @@ export async function POST(
           print_provider_order_id: printifyId,
           fulfillment_status: 'sent_to_printify'
         }).eq('id', orderId);
+      }
+    }
+
+    // 3. Send Admin Completion Alert
+    if (order && process.env.ADMIN_EMAIL) {
+      try {
+        const resend = new Resend(process.env.RESEND_API_KEY!);
+        await resend.emails.send({
+          from: 'Pet Portraits <noreply@tayloredsolutions.ai>',
+          to: process.env.ADMIN_EMAIL,
+          subject: `Order Completed: ${order.order_number || orderId} - ${order.customer_name}`,
+          text: `The customer has selected their final images. Order is ready for fulfillment.\n\nOrder ID: ${orderId}\nCustomer: ${order.customer_name}\nPet: ${order.pet_name || 'N/A'}\nProduct: ${printProduct}`,
+        });
+        console.log('[AdminAlert] Order completion email sent to admin');
+      } catch (emailError) {
+        console.error('[AdminAlert] Failed to send admin email:', emailError);
+        // Don't fail the request if email fails
       }
     }
 

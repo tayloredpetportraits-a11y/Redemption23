@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShoppingBag, Palette, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Palette, Settings, LogOut, Layers } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard }, // Points to Master Orders View
+  { name: 'Mockup Templates', href: '/admin/mockups', icon: Layers },
   { name: 'Themes', href: '/admin/themes', icon: Palette },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];

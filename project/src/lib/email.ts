@@ -30,7 +30,7 @@ export async function sendCustomerNotification(
     let htmlContent = '';
 
     if (type === 'ordered') {
-        subject = 'We’ve started your Pet Portrait! 🎨';
+        subject = 'We\'ve started your Pet Portrait! 🎨';
         htmlContent = `
             <h1 style="color: #d97706;">We're on it!</h1>
             <p>Hi ${customerName},</p>
@@ -78,3 +78,71 @@ export async function sendCustomerNotification(
         return false;
     }
 }
+
+/**
+ * Send processing email notification
+ * Triggered immediately when order is received via Shopify webhook
+ */
+export async function sendProcessingEmail(
+    customerEmail: string,
+    customerName: string,
+    petName: string
+): Promise<boolean> {
+    if (!process.env.RESEND_API_KEY) {
+        console.warn("⚠️ RESEND_API_KEY missing. Skipping processing email send.");
+        return false;
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    console.log(`[Email Service] Sending processing notification to ${customerEmail} for pet: ${petName}...`);
+
+    try {
+        const { data, error } = await resend.emails.send({
+            from: 'Pet Portraits <noreply@tayloredsolutions.ai>',
+            to: [customerEmail],
+            subject: `🐾 We're Creating ${petName}'s Portrait!`,
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h1 style="color: #7C3AED; margin-bottom: 20px;">Paw-some news, ${customerName}!</h1>
+                    
+                    <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                        We've received your order for <strong>${petName}</strong>.
+                    </p>
+                    
+                    <p style="font-size: 16px; line-height: 1.6; color: #333;">
+                        Our AI artists are starting work on your portrait right now. 🎨
+                    </p>
+                    
+                    <div style="background: linear-gradient(135deg, #7C3AED 0%, #EC4899 100%); padding: 20px; border-radius: 8px; margin: 30px 0; color: white;">
+                        <p style="margin: 0; font-size: 14px;">
+                            ✨ Estimated completion: <strong>15-30 minutes</strong>
+                        </p>
+                    </div>
+                    
+                    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+                        You'll receive another email when your portraits are ready to view. 
+                        We can't wait to show you the results!
+                    </p>
+                    
+                    <p style="font-size: 12px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;">
+                        Questions? Reply to this email and we'll help!<br />
+                        Pet Portraits by Taylored Solutions
+                    </p>
+                </div>
+            `
+        });
+
+        if (error) {
+            console.error('[Email Service] Processing email error:', error);
+            return false;
+        }
+
+        console.log('[Email Service] Processing email sent successfully:', data?.id);
+        return true;
+    } catch (e) {
+        console.error('[Email Service] Processing email exception:', e);
+        return false;
+    }
+}
+

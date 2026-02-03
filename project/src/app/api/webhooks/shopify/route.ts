@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/server';
 import { generateImagesForOrder } from '@/lib/ai/generation';
-import { sendCustomerNotification } from '@/lib/email';
+import { sendProcessingEmail } from '@/lib/email';
 import path from 'path';
 import fs from 'fs';
 
@@ -49,6 +49,11 @@ export async function POST(req: Request) {
         // 2. Extract Data
         const customerEmail = payload.email || payload.customer?.email;
         const customerName = payload.customer ? `${payload.customer.first_name} ${payload.customer.last_name}` : 'Guest';
+
+        // Extract Shopify order metadata
+        const shopifyOrderNumber = payload.order_number || payload.name || null; // e.g., #1234 or "#1001"
+        const shopifyTotalPrice = payload.total_price ? Math.round(parseFloat(payload.total_price) * 100) : null; // Convert to cents
+        const shopifyNotes = payload.note || ''; // Customer notes from Shopify checkout
 
         // Loop through line items to find the "Portrait" product
         let lineItemFound = false;
@@ -124,8 +129,12 @@ export async function POST(req: Request) {
                         pet_image_url: storageUrl,
                         status: 'pending',
                         pet_breed: breed || null,
-                        pet_name: petName || null, // FIXED: Now saving pet name
-                        pet_details: fullDetails
+                        pet_name: petName || null,
+                        pet_details: fullDetails,
+                        shopify_order_number: shopifyOrderNumber,
+                        shopify_total_price: shopifyTotalPrice,
+                        shopify_notes: shopifyNotes,
+                        source: 'shopify'
                     })
                     .select()
                     .single();
@@ -137,8 +146,14 @@ export async function POST(req: Request) {
 
                 console.log(`[Shopify] Order created: ${order.id}`);
 
-                // Send Welcome Email
-                sendCustomerNotification(customerEmail, customerName, order.id, 'ordered').catch(e => console.error(e));
+                // Send Processing Email (immediate confirmation)
+                if (petName) {
+                    sendProcessingEmail(customerEmail, customerName, petName).catch(e => {
+                        console.error('[Shopify] Failed to send processing email:', e);
+                    });
+                } else {
+                    console.log('[Shopify] Skipping processing email - no pet name available');
+                }
 
                 // Trigger Generation
                 // Pass the product type (item.name) so generation.ts can map it to 'spaday', 'royalty', etc.

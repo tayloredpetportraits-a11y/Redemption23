@@ -42,7 +42,7 @@ export default function PrintifyProductsAdminPage() {
     const [testMockupUrl, setTestMockupUrl] = useState<string | null>(null);
     const [testingProduct, setTestingProduct] = useState<string | null>(null);
     const [overlayFile, setOverlayFile] = useState<File | null>(null);
-    const [uploadingOverlay, setUploadingOverlay] = useState(false);
+    const [_uploadingOverlay, setUploadingOverlay] = useState(false);
 
     const [formData, setFormData] = useState<ProductFormData>({
         product_name: '',

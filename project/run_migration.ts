@@ -15,7 +15,7 @@ async function runMigration() {
 
     console.log('Running migration SQL...\n');
 
-    const { data, error } = await supabase.rpc('exec_sql', { sql_query: sql });
+    const { data: _data, error } = await supabase.rpc('exec_sql', { sql_query: sql });
 
     if (error) {
         // Try running via REST API instead

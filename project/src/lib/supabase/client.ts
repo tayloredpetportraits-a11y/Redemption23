@@ -41,6 +41,9 @@ export type Order = {
   print_provider_order_id: string | null;
   share_count: number;
   shelter_dog_id?: string | null;
+  shopify_order_number?: string | null;
+  shopify_total_price?: number | null;
+  shopify_notes?: string | null;
   created_at: string;
 };
 
@@ -63,7 +66,7 @@ export type Image = {
   watermarked_url: string | null;
   theme_name: string | null;
   display_order: number;
-  status: 'generated' | 'approved' | 'rejected'; // Updated: 'pending_review' → 'generated'
+  status: 'generated' | 'approved' | 'rejected' | 'pending_review'; // Updated to include pending_review
   template_id: string | null;
   prompt?: string; // Optional debug info
   created_at: string;

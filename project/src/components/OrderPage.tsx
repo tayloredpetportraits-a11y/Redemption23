@@ -61,7 +61,7 @@ export default function OrderPage({ order, primaryImages, upsellImages }: OrderP
   const fetchUpsellProducts = async () => {
     setLoadingUpsellProducts(true);
     try {
-      const { data, error } = await fetch('/api/admin/printify-products?active=true').then(r => r.json());
+      const { data, error: _error } = await fetch('/api/admin/printify-products?active=true').then(r => r.json());
       // Filter out 'digital' product type
       const physicalProducts = (data.products || []).filter((p: any) => p.product_type !== 'digital');
       setUpsellProducts(physicalProducts);

@@ -86,16 +86,28 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
         fetchData();
     };
 
-    const handleSendReadyEmail = async () => {
-        if (!confirm("Send 'Portraits Ready' email to customer?")) return;
+    const handlePublishOrder = async () => {
+        if (!order) {
+            alert("Order not loaded");
+            return;
+        }
+
+        if (!confirm("Publish this order and send 'Gallery Ready' email to customer?")) return;
+
         try {
-            await fetch(`/api/admin/notify-ready`, {
+            const res = await fetch(`/api/admin/orders/${order.id}/finalize`, {
                 method: 'POST',
-                body: JSON.stringify({ orderId })
             });
-            alert("Email queued.");
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to publish order');
+            }
+
+            alert("Order published! Customer has been notified.");
+            await fetchData(); // Refresh order status
         } catch (e) {
-            alert("Error: " + e);
+            alert("Error publishing order: " + (e as Error).message);
         }
     };
 
@@ -153,8 +165,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
             ));
 
             // Check if ready
-            if (confirm("All images approved! Send 'Portraits Ready' email now?")) {
-                handleSendReadyEmail();
+            if (confirm("All images approved! Publish order and notify customer now?")) {
+                handlePublishOrder();
             }
         } catch (e) {
             alert("Error approving all: " + e);
@@ -209,12 +221,54 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
                         <span className="hidden sm:inline">Copy Link</span>
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-link"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
                     </button>
-                    <button onClick={handleSendReadyEmail} className="btn-secondary flex items-center gap-2 px-4 py-2 bg-zinc-800 rounded-lg hover:bg-zinc-700">
+                    <button
+                        onClick={handlePublishOrder}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all"
+                    >
                         <Mail className="w-4 h-4" />
+                        <span className="hidden sm:inline">Publish Order</span>
                     </button>
                     <button onClick={handleMarkResolved} className="btn-primary px-4 py-2 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400">
                         Mark Resolved
                     </button>
+                </div>
+            </div>
+
+            {/* Shopify Order Details Card */}
+            <div className="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 space-y-4">
+                <h3 className="font-bold text-zinc-400 uppercase tracking-widest text-xs">
+                    Shopify Order Details
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span className="text-zinc-500 block mb-1">Pet Name:</span>
+                        <p className="text-zinc-200 font-medium">{order.pet_name || 'Not provided'}</p>
+                    </div>
+                    <div>
+                        <span className="text-zinc-500 block mb-1">Breed:</span>
+                        <p className="text-zinc-200 font-medium">{order.pet_breed || 'Not provided'}</p>
+                    </div>
+                    <div>
+                        <span className="text-zinc-500 block mb-1">Shopify Order #:</span>
+                        <p className="text-zinc-200 font-medium font-mono text-xs">
+                            {order.shopify_order_number || 'N/A'}
+                        </p>
+                    </div>
+                    <div>
+                        <span className="text-zinc-500 block mb-1">Total Spent:</span>
+                        <p className="text-zinc-200 font-medium">
+                            {order.shopify_total_price
+                                ? `$${(order.shopify_total_price / 100).toFixed(2)}`
+                                : 'N/A'
+                            }
+                        </p>
+                    </div>
+                    <div className="col-span-2">
+                        <span className="text-zinc-500 block mb-1">Customer Notes:</span>
+                        <p className="text-zinc-300 text-xs bg-zinc-800/50 p-3 rounded-lg border border-zinc-700">
+                            {order.shopify_notes || order.pet_details || 'No notes provided'}
+                        </p>
+                    </div>
                 </div>
             </div>
 
