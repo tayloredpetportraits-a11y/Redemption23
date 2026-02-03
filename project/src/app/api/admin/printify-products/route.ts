@@ -1,3 +1,12 @@
+/**
+ * @deprecated SOFT DEPRECATION - Printify Product Configuration Management
+ * 
+ * This endpoint manages Printify product configurations for manual fulfillment.
+ * Note: Printify is NO LONGER used for mockup generation (now CSS-based).
+ * 
+ * Consider renaming to "Fulfillment Settings" to clarify purpose.
+ */
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 

@@ -1,3 +1,17 @@
+/**
+ * @deprecated PARTIAL DEPRECATION - Mockup Generation Removed
+ * 
+ * As of 2026-02-02, this service is NO LONGER USED for mockup generation.
+ * Mockups are now generated using CSS Overlay system (see system-architecture.md).
+ * 
+ * STILL USED FOR:
+ * - Post-selection fulfillment (createOrder)
+ * - Manual admin-triggered print orders
+ * 
+ * DO NOT USE:
+ * - generateMockupImage() - Deprecated, use CSS overlays instead
+ * - uploadImage() - Only needed for mockup generation (deprecated)
+ */
 
 import { createClient } from '@supabase/supabase-js';
 

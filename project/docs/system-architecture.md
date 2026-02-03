@@ -170,6 +170,9 @@ CREATE TABLE images (
     'rejected'    -- Admin rejected, hidden from customer
   )),
   
+  -- Admin feedback for rejected images
+  rejection_reason text,
+  
   -- Customer interaction
   is_selected boolean DEFAULT false,
   is_bonus boolean DEFAULT false,
@@ -186,6 +189,8 @@ CREATE INDEX images_order_id_idx ON images(order_id);
 CREATE INDEX images_status_idx ON images(status);
 CREATE INDEX images_type_idx ON images(type);
 ```
+
+> **Note on Mockup Generation**: As of 2026-02-02, product mockups (showing portraits on canvases, mugs, etc.) are generated using a **CSS Overlay System**, not external APIs. Overlay templates are stored in the `mockup_templates` table and composited with portraits using CSS. This provides instant rendering and eliminates API dependencies.
 
 ### Key Relationships
 
